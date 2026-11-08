@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Run as root on Ubuntu 24.04; reviewed Docker apt repository, no application secrets.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq uidmap dbus-user-session slirp4netns fuse-overlayfs ca-certificates curl
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL --max-time 60 https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+cat > /etc/apt/sources.list.d/docker.sources <<'SOURCES'
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: noble
+Components: stable
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/docker.asc
+SOURCES
+apt-get update -qq
+# Resolve once on first install; later runs retain installed versions.
+if ! dpkg-query -W docker-ce >/dev/null 2>&1; then
+  version=$(apt-cache policy docker-ce | awk '/Candidate:/ {print $2}')
+  apt-get install -y -qq "docker-ce=$version" "docker-ce-cli=$version" "docker-ce-rootless-extras=$version" containerd.io
+fi
+systemctl disable --now docker.service docker.socket
+id doctor-runner >/dev/null 2>&1 || useradd -m -s /bin/bash doctor-runner
+grep -q '^doctor-runner:' /etc/subuid || usermod --add-subuids 100000-165535 doctor-runner
+grep -q '^doctor-runner:' /etc/subgid || usermod --add-subgids 100000-165535 doctor-runner
+mkdir -p /etc/systemd/system/user@.service.d
+cat > /etc/systemd/system/user@.service.d/delegate.conf <<'DELEGATE'
+[Service]
+Delegate=cpu cpuset io memory pids
+DELEGATE
+systemctl daemon-reload
+loginctl enable-linger doctor-runner
+runner_uid=$(id -u doctor-runner)
+systemctl start "user@$runner_uid.service"
+runuser -u doctor-runner -- env XDG_RUNTIME_DIR="/run/user/$runner_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" dockerd-rootless-setuptool.sh install
+runuser -u doctor-runner -- env XDG_RUNTIME_DIR="/run/user/$runner_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" systemctl --user start docker
+dpkg-query -W -f='${Package}=${Version}\n' docker-ce docker-ce-cli docker-ce-rootless-extras containerd.io

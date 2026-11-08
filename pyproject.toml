@@ -1,0 +1,15 @@
+[project]
+name = "experiment-doctor"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = ["pydantic==2.12.3", "fastapi==0.121.0", "httpx==0.28.1", "uvicorn==0.38.0"]
+
+[dependency-groups]
+dev = ["pytest==8.4.2", "ruff==0.14.3"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

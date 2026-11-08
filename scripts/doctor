@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Fixed repository-owned probes only; never executes supplied candidate code on host.
+set -euo pipefail
+command -v docker >/dev/null || { echo 'BLOCKED: Docker CLI unavailable'; exit 1; }
+command -v timeout >/dev/null || { echo 'BLOCKED: GNU timeout required on Linux'; exit 1; }
+security=$(docker info --format '{{json .SecurityOptions}}')
+case "$security" in *rootless*) ;; *) echo 'BLOCKED: dedicated rootless Docker required'; exit 1;; esac
+[ "$(docker info --format '{{.CgroupVersion}}')" = 2 ] || { echo 'BLOCKED: cgroup v2 required'; exit 1; }
+: "${SIMULATION_IMAGE:?Set SIMULATION_IMAGE to a pre-pulled repository@sha256 digest}"
+[[ "$SIMULATION_IMAGE" =~ ^[a-zA-Z0-9./:_-]+@sha256:[a-f0-9]{64}$ ]] || { echo 'BLOCKED: immutable image required'; exit 1; }
+docker image inspect "$SIMULATION_IMAGE" >/dev/null
+name="experiment-doctor-preflight-$$"
+cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+probe() {
+  timeout --signal=TERM --kill-after=2 35 docker run --name "$name" --pull=never \
+    --network=none --read-only --user 65532:65532 --cap-drop=ALL \
+    --security-opt=no-new-privileges --cpus="${2:-1}" --memory=512m --memory-swap=512m \
+    --pids-limit=64 --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m \
+    --tmpfs /output:rw,noexec,nosuid,nodev,size=64m \
+    --entrypoint /usr/bin/env "$SIMULATION_IMAGE" -i \
+    PATH=/usr/local/bin:/usr/bin:/bin python -I -c "$1"
+}
+probe '
+import json, os, pathlib, socket
+assert pathlib.Path("/sys/fs/cgroup/memory.max").read_text().strip() == "536870912"
+assert pathlib.Path("/sys/fs/cgroup/memory.swap.max").read_text().strip() == "0"
+assert pathlib.Path("/sys/fs/cgroup/pids.max").read_text().strip() == "64"
+quota, period = map(int, pathlib.Path("/sys/fs/cgroup/cpu.max").read_text().split())
+assert quota / period == 1
+assert os.getuid() == 65532
+assert not any("KEY" in k or "SECRET" in k or "TOKEN" in k for k in os.environ)
+try:
+    pathlib.Path("/canary").write_text("probe")
+except OSError:
+    pass
+else:
+    raise AssertionError("root filesystem writable")
+assert [p.name for p in pathlib.Path("/sys/class/net").iterdir()] == ["lo"]
+try:
+    socket.create_connection(("1.1.1.1", 443), timeout=1)
+except OSError:
+    pass
+else:
+    raise AssertionError("egress allowed")
+pathlib.Path("/output/probe").write_text("ok")
+print(json.dumps({"bounded_container": True, "cgroup_limits_observed": True,
+                  "nonroot": True, "egress_denied": True, "readonly_root": True,
+                  "credential_environment_absent": True}))
+'
+cleanup
+# Real memory exhaustion must be killed by cgroup, not just return an exception.
+set +e
+probe 'x = bytearray(700 * 1024 * 1024)'
+status=$?
+set -e
+[ "$status" -eq 137 ] && [ "$(docker inspect --format '{{.State.OOMKilled}}' "$name")" = true ] || { echo 'FAIL: memory enforcement'; exit 1; }
+echo '{"memory_oom_enforced":true}'
+cleanup
+probe '
+import errno, json, subprocess, sys
+children = []
+try:
+    for _ in range(80):
+        try:
+            children.append(subprocess.Popen([sys.executable,"-I","-c","import time; time.sleep(15)"]))
+        except OSError as e:
+            assert e.errno == errno.EAGAIN
+            break
+    else:
+        raise AssertionError("PID limit not enforced")
+    assert 1 < len(children) < 64
+    print(json.dumps({"pid_limit_enforced": True, "children": len(children)}))
+finally:
+    for child in children:
+        child.terminate()
+    for child in children:
+        child.wait()
+'
+cleanup
+# On a one-vCPU host, demonstrate throttling at half a CPU; the production
+# one-CPU limit was independently checked above.
+probe '
+import json, pathlib, subprocess, sys, time
+code = "import time\nend=time.monotonic()+3\nwhile time.monotonic()<end: pass"
+children = [subprocess.Popen([sys.executable,"-I","-c",code]) for _ in range(2)]
+for child in children: assert child.wait() == 0
+stats = dict(line.split() for line in pathlib.Path("/sys/fs/cgroup/cpu.stat").read_text().splitlines())
+assert int(stats["nr_throttled"]) > 0
+print(json.dumps({"cpu_throttling_enforced": True, "probe_cpu_limit": 0.5,
+                  "nr_throttled": int(stats["nr_throttled"])}))
+' 0.5
+cleanup
+# Deadline: supervisor returns promptly and explicit removal kills the container tree.
+set +e
+timeout --signal=TERM --kill-after=2 2 docker run --name "$name" --pull=never \
+  --network=none --read-only --user 65532:65532 --cap-drop=ALL \
+  --security-opt=no-new-privileges --cpus=1 --memory=512m --memory-swap=512m \
+  --pids-limit=64 --entrypoint /usr/bin/env "$SIMULATION_IMAGE" -i \
+  PATH=/usr/local/bin:/usr/bin:/bin python -I -c 'import time; time.sleep(60)'
+status=$?
+set -e
+case "$status" in 124|137) ;; *) echo 'FAIL: supervisor timeout'; exit 1;; esac
+cleanup
+if docker container inspect "$name" >/dev/null 2>&1; then echo 'FAIL: cleanup'; exit 1; fi
+echo '{"deadline_enforced":true,"cleanup_verified":true,"runtime_preflight":"PASS"}'

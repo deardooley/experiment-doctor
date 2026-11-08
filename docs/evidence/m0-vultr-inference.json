@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-11-08T21:41:36Z",
+  "command": "python scripts/probe_inference.py (private .env loaded)",
+  "endpoint": "https://api.vultrinference.com/v1/chat/completions",
+  "live": true,
+  "model": "mimo-v2.6-flash",
+  "http_status": 200,
+  "response": {"status": "ok"},
+  "schema_validated": true,
+  "max_tokens": 64,
+  "timeout_seconds": 30,
+  "dispatch": "schema-validated JSON with server-side dispatch planned for M2",
+  "native_tool_support": "not tested; not required for the selected JSON fallback",
+  "credentials_recorded": false
+}

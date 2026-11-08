@@ -1,0 +1,6 @@
+# Select actual available IDs and review cost before apply.
+region     = "REPLACE"
+plan       = "REPLACE"
+os_id      = 0
+ssh_public_key = "ssh-ed25519 REPLACE"
+admin_cidr = "192.0.2.1/32"

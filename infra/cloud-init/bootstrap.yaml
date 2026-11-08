@@ -1,0 +1,25 @@
+#cloud-config
+# Foundation only: no credentials or application release; runtime remains unready.
+package_update: true
+packages:
+  - uidmap
+  - dbus-user-session
+  - slirp4netns
+  - fuse-overlayfs
+  - ca-certificates
+  - curl
+users:
+  - default
+  - name: doctor-api
+    system: true
+    shell: /usr/sbin/nologin
+  - name: doctor-worker
+    system: true
+    shell: /usr/sbin/nologin
+  - name: doctor-runner
+    shell: /bin/bash
+    lock_passwd: true
+runcmd:
+  - [install, -d, -m, '0700', -o, doctor-runner, -g, doctor-runner, /var/lib/experiment-doctor/runner]
+  - [install, -d, -m, '0700', -o, doctor-worker, -g, doctor-worker, /var/lib/experiment-doctor/control]
+  - [loginctl, enable-linger, doctor-runner]
