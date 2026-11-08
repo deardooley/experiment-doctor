@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Secret-free service groups and directories; no deployment or model credentials.
+set -euo pipefail
+for account in doctor-api doctor-worker doctor-runner; do
+  id "$account" >/dev/null
+done
+getent group doctor-execution >/dev/null || groupadd --system doctor-execution
+getent group doctor-control >/dev/null || groupadd --system doctor-control
+usermod -a -G doctor-execution,doctor-control doctor-worker
+usermod -a -G doctor-execution doctor-runner
+usermod -a -G doctor-control doctor-api
+case " $(id -nG doctor-api) " in
+  *' docker '*|*' doctor-execution '*) echo 'API has forbidden runtime group access'; exit 1;;
+esac
+install -d -m 2770 -o doctor-worker -g doctor-control /var/lib/experiment-doctor/control
+install -d -m 2770 -o doctor-worker -g doctor-control /var/lib/experiment-doctor/control/blobs
+install -d -m 0700 -o doctor-worker -g doctor-worker /var/lib/experiment-doctor/control/diagnoses
+if [ ! -e /var/lib/experiment-doctor/control/api.sqlite3 ]; then
+  install -m 0660 -o doctor-worker -g doctor-control /dev/null /var/lib/experiment-doctor/control/api.sqlite3
+fi
+for database_file in api.sqlite3 api.sqlite3-wal api.sqlite3-shm; do
+  if [ -f "/var/lib/experiment-doctor/control/$database_file" ]; then
+    chown doctor-worker:doctor-control "/var/lib/experiment-doctor/control/$database_file"
+    chmod 0660 "/var/lib/experiment-doctor/control/$database_file"
+  fi
+done
+install -d -m 0750 -o doctor-runner -g doctor-execution /run/experiment-doctor

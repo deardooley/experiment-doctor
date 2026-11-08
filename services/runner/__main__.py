@@ -10,6 +10,7 @@ import uvicorn
 
 from services.runner.api import create_app
 from services.runner.runtime import Settings
+from packages.security.environment import isolate_environment
 
 
 def serve(settings, socket_path):
@@ -38,6 +39,7 @@ def serve(settings, socket_path):
 
 
 def main():
+    isolate_environment("services.runner", set())
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--socket", type=Path, required=True)

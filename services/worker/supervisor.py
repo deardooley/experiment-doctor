@@ -7,7 +7,7 @@ import time
 from uuid import uuid4
 
 from packages.contracts import JobSpec
-from services.runner.runtime import MAX_ARTIFACTS
+from services.runner.runtime import MAX_ARTIFACTS, EnforcementUnavailable
 
 
 class Cancelled(Exception):
@@ -61,6 +61,10 @@ class Supervisor:
         try:
             self.settings.authorize(spec)
             status, reason, code, outputs = self.runtime.execute(job_id, spec, poll)
+        except EnforcementUnavailable:
+            self.ready = False
+            self.store.security("ENFORCEMENT_LOST", str(spec.experiment_id))
+            status, reason = "FAILED", "POLICY_DENIED"
         except Cancelled as exc:
             status, reason = "CANCELLED", "CANCELLED"
             outputs = self.failure_logs(exc)

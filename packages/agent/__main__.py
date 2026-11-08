@@ -6,6 +6,7 @@ from pathlib import Path
 from packages.agent.doctor import Doctor
 from packages.agent.inference import VerificationOnly, VultrModel
 from packages.execution.local import LocalExecutionClient
+from packages.security.environment import isolate_environment
 
 
 async def run(args):
@@ -21,6 +22,7 @@ async def run(args):
 
 
 def main():
+    isolate_environment("packages.agent", {"INFERENCE_API_KEY"})
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixture", required=True, choices=["decay-healthy", "decay-coarse-step", "decay-wrong-sign", "decay-false-success"])
     parser.add_argument("--socket", type=Path, required=True)

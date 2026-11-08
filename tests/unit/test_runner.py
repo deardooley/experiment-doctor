@@ -203,3 +203,19 @@ def test_janitor_retains_active_and_removes_expired(settings):
     supervisor.janitor()
     assert store.artifacts(job_id) == []
     assert not (supervisor.artifact_dir / artifacts[0]["id"]).exists()
+
+
+def test_enforcement_loss_disables_readiness_before_further_jobs(settings):
+    from services.runner.runtime import EnforcementUnavailable
+    class MissingEnforcement(FakeRuntime):
+        def execute(self, job_id, spec, poll):
+            raise EnforcementUnavailable("controlled missing limit")
+    store = Store(settings.root / "db")
+    supervisor = Supervisor(store, MissingEnforcement(), settings)
+    supervisor.reconcile()
+    job_id = store.submit(spec())
+    supervisor.tick()
+    assert not supervisor.ready
+    assert store.get(job_id)["reason"] == "POLICY_DENIED"
+    with store.connect() as db:
+        assert db.execute("SELECT count(*) FROM security_events WHERE kind='ENFORCEMENT_LOST'").fetchone()[0] == 1

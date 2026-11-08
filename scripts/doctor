@@ -5,6 +5,7 @@ command -v docker >/dev/null || { echo 'BLOCKED: Docker CLI unavailable'; exit 1
 command -v timeout >/dev/null || { echo 'BLOCKED: GNU timeout required on Linux'; exit 1; }
 security=$(docker info --format '{{json .SecurityOptions}}')
 case "$security" in *rootless*) ;; *) echo 'BLOCKED: dedicated rootless Docker required'; exit 1;; esac
+case "$security" in *name=seccomp,profile=builtin*) ;; *) echo 'BLOCKED: builtin seccomp enforcement required'; exit 1;; esac
 [ "$(docker info --format '{{.CgroupVersion}}')" = 2 ] || { echo 'BLOCKED: cgroup v2 required'; exit 1; }
 : "${SIMULATION_IMAGE:?Set SIMULATION_IMAGE to a pre-pulled repository@sha256 digest}"
 [[ "$SIMULATION_IMAGE" =~ ^[a-zA-Z0-9./:_-]+@sha256:[a-f0-9]{64}$ ]] || { echo 'BLOCKED: immutable image required'; exit 1; }
@@ -29,6 +30,10 @@ assert pathlib.Path("/sys/fs/cgroup/pids.max").read_text().strip() == "64"
 quota, period = map(int, pathlib.Path("/sys/fs/cgroup/cpu.max").read_text().split())
 assert quota / period == 1
 assert os.getuid() == 65532
+status = dict(line.split(":",1) for line in pathlib.Path("/proc/self/status").read_text().splitlines() if ":" in line)
+assert status["Seccomp"].strip() == "2"
+assert status["NoNewPrivs"].strip() == "1"
+assert int(status["CapEff"].strip(),16) == 0
 assert not any("KEY" in k or "SECRET" in k or "TOKEN" in k for k in os.environ)
 try:
     pathlib.Path("/canary").write_text("probe")

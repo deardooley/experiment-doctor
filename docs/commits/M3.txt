@@ -1,0 +1,8 @@
+M3: Containment
+
+- Add signed sessions, CSRF protection, ownership checks and bounded public experiment queues
+- Separate API, control-worker and runner identities and credential environments
+- Verify sandbox enforcement before each job and fail readiness closed on control loss
+- Add controlled network, canary, artifact, injection and resource-pressure probes
+- Harden cancellation, lost-response recovery, evidence downloads and retention
+- Validate real containment and continued API health on Vultr and record teardown evidence

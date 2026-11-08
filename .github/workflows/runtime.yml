@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get install -y python3-venv
           sudo install -d /opt/experiment-doctor
-          tar --exclude=__pycache__ -cf /tmp/source.tar services packages experiments verifiers containers scripts tests pyproject.toml uv.lock .dockerignore
+          tar --exclude=__pycache__ -cf /tmp/source.tar apps services packages experiments verifiers containers scripts tests pyproject.toml uv.lock .dockerignore
           sudo tar -xf /tmp/source.tar -C /opt/experiment-doctor
           sudo chown -R doctor-runner:doctor-runner /opt/experiment-doctor
           cd /opt/experiment-doctor

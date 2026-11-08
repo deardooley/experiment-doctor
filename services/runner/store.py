@@ -29,6 +29,9 @@ class Store:
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS schema_version(version INTEGER PRIMARY KEY);
                 INSERT OR IGNORE INTO schema_version VALUES(1);
+                INSERT OR IGNORE INTO schema_version VALUES(2);
+                CREATE TABLE IF NOT EXISTS security_events(
+                    id INTEGER PRIMARY KEY, at REAL NOT NULL, experiment_id TEXT, kind TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS jobs(
                     id TEXT PRIMARY KEY, key TEXT UNIQUE NOT NULL, spec TEXT NOT NULL,
                     status TEXT NOT NULL, reason TEXT, exit_code INTEGER,
@@ -59,6 +62,11 @@ class Store:
         db.execute("INSERT INTO events(job_id,at,kind) VALUES(?,?,?)",
                    (job_id, time.time(), kind))
 
+    def security(self, kind, experiment_id=None):
+        with self.connect() as db:
+            db.execute("INSERT INTO security_events(at,experiment_id,kind) VALUES(?,?,?)",
+                       (time.time(), experiment_id, kind))
+
     def submit(self, spec: JobSpec):
         raw = spec.model_dump_json()
         with self.connect() as db:
@@ -84,6 +92,13 @@ class Store:
             if row is None:
                 raise KeyError(job_id)
             return dict(row)
+
+    def by_key(self, key):
+        with self.connect() as db:
+            row = db.execute("SELECT id FROM jobs WHERE key=?", (key,)).fetchone()
+            if row is None:
+                raise KeyError(key)
+            return self.get(row[0])
 
     def claim(self, owner, lease_seconds=10):
         with self.connect() as db:

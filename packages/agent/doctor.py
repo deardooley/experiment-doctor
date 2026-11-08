@@ -27,7 +27,7 @@ class BudgetExceeded(RuntimeError):
 
 
 class Doctor:
-    def __init__(self, client, model, root: Path, deadline=180):
+    def __init__(self, client, model, root: Path, deadline=180, on_event=None):
         self.client, self.model, self.journal = client, model, Journal(root)
         self.deadline = min(deadline, 180)
         self.jobs = self.calls = 0
@@ -35,6 +35,7 @@ class Doctor:
         self.attempts = []
         self.events = []
         self.config = None
+        self.on_event = on_event
         self.started = time.monotonic()
 
     def tool(self, name, data):
@@ -45,6 +46,8 @@ class Doctor:
         event = {"tool": name, **data}
         self.events.append(event)
         self.journal.event(self.experiment_id, "TOOL", event)
+        if self.on_event:
+            self.on_event("TOOL", event)
 
     async def simulation(self, code, parameters, role):
         digest = await self.client.register_candidate(code)
@@ -126,12 +129,12 @@ class Doctor:
         self.journal.verification(self.attempt_id, result)
         return result
 
-    async def run(self, fixture, repair=True):
+    async def run(self, fixture, repair=True, experiment_id=None, task="Diagnose the decay experiment."):
         if hasattr(self, "experiment_id"):
             raise ValueError("one diagnosis per Doctor instance")
         self.started = time.monotonic()
         started_at = time.time()
-        self.experiment_id = str(uuid4())
+        self.experiment_id = str(UUID(str(experiment_id))) if experiment_id else str(uuid4())
         self.directory = self.journal.start(self.experiment_id, fixture)
         outcome, error = "INCOMPLETE", None
         try:
@@ -176,7 +179,7 @@ class Doctor:
                                 path = self.directory / f'{job["job_id"]}-{artifact["id"]}'
                                 text = path.read_bytes()[:2048].decode(errors="replace")
                                 logs.append(re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", text))
-                    proposal = await self.model.propose({"fixture": fixture, "source": source,
+                    proposal = await self.model.propose({"fixture": fixture, "source": source, "task": task[:1000],
                         "parameters": parameters, "verification_spec": {"equation": "dx/dt=-k*x", "max_abs_error": 0.01},
                         "checks": checks, "untrusted_logs": logs})
                     self.tool("propose_patch", {"revision": revision + 1})

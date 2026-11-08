@@ -8,6 +8,8 @@ from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 
 from packages.contracts import CandidateBundle, JobResult, JobSpec
 from services.runner.runtime import DockerRuntime
@@ -44,6 +46,11 @@ def create_app(settings, runtime=None):
     app = FastAPI(title="Experiment Doctor private runner", version="1", lifespan=lifespan,
                   docs_url=None, redoc_url=None)
     app.state.store, app.state.supervisor = store, supervisor
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request, exc):
+        store.security("VALIDATION_DENIED")
+        return await request_validation_exception_handler(request, exc)
 
     @app.middleware("http")
     async def bound_request(request: Request, call_next):
@@ -86,6 +93,7 @@ def create_app(settings, runtime=None):
         try:
             settings.authorize(spec)
         except ValueError:
+            store.security("POLICY_DENIED", str(spec.experiment_id))
             raise HTTPException(403, "job denied by runner allowlist") from None
         if spec.kind == "verification":
             for source_id in spec.verification_inputs:
@@ -93,10 +101,12 @@ def create_app(settings, runtime=None):
                     row = store.get(source_id)
                     source = JobSpec.model_validate_json(row["spec"])
                 except (KeyError, ValueError):
+                    store.security("EVIDENCE_DENIED", str(spec.experiment_id))
                     raise HTTPException(403, "unknown verifier evidence") from None
                 if (source.kind != "simulation" or source.experiment_id != spec.experiment_id
                         or source.attempt_id != spec.attempt_id
                         or row["status"] in ("QUEUED", "RUNNING")):
+                    store.security("EVIDENCE_DENIED", str(spec.experiment_id))
                     raise HTTPException(403, "verifier evidence ownership or state mismatch")
         ready()
         try:
@@ -124,6 +134,16 @@ def create_app(settings, runtime=None):
     @app.get("/execution/v1/jobs/{job_id}", response_model=JobResult)
     def status(job_id: UUID):
         return job(job_id)
+
+    @app.get("/execution/v1/jobs/by-key/{key}", response_model=JobResult)
+    def by_key(key: str):
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", key):
+            raise HTTPException(404, "unknown job")
+        try:
+            return job(store.by_key(key)["id"])
+        except KeyError:
+            raise HTTPException(404, "unknown job") from None
 
     @app.post("/execution/v1/jobs/{job_id}/cancel", response_model=JobResult)
     def cancel(job_id: UUID):

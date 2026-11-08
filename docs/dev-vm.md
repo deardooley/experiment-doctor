@@ -45,3 +45,5 @@ Verify the instance is absent from Vultr after destroy. Terraform state may cont
 Estimated total $0.028; estimated remaining authorization $14.972. No running VM, snapshots or paid storage were retained.
 
 M2 session: all six resources destroyed; GET returned 404 at 2026-11-08T22:26:59Z. Conservative compute estimate $0.014; recorded live inference estimate $0.00094165 (including the initial incomplete trial). Cumulative tracked M0–M2 estimate is $0.04294 plus the small unmetered M0 inference probe, pending provider billing; approximately $14.957 remains authorized. The exact trusted verifier image was exported locally before teardown; no cloud resource was retained for it.
+
+M3 session: under one hour at $0.014/hour, zero paid inference calls. All services stopped; zero containers remained; all six resources destroyed and GET returned 404 at 2026-11-08T23:28:36Z. Cumulative tracked estimate is $0.05694 plus the small unmetered M0 inference probe, pending provider invoice; approximately $14.943 remains authorized. No VM, snapshot or paid storage remains.

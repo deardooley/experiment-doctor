@@ -1,0 +1,24 @@
+[Unit]
+Description=Experiment Doctor model/control worker
+After=experiment-doctor-runner.service
+Requires=experiment-doctor-runner.service
+
+[Service]
+Type=simple
+User=doctor-worker
+Group=doctor-control
+SupplementaryGroups=doctor-execution
+WorkingDirectory=/opt/experiment-doctor/current
+EnvironmentFile=/etc/experiment-doctor/inference.env
+ExecStart=/opt/experiment-doctor/current/.venv/bin/python -m services.control --root /var/lib/experiment-doctor/control --socket /run/experiment-doctor/runner.sock
+UMask=0007
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=50
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/experiment-doctor/control
+
+[Install]
+WantedBy=multi-user.target

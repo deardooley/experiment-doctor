@@ -27,3 +27,15 @@ diagnose:
 build-verifier:
 	docker build --pull=false -f containers/verifier.Dockerfile -t experiment-doctor-verifier:dev .
 	docker image inspect --format '{{.Id}}' experiment-doctor-verifier:dev
+
+.PHONY: api control-worker containment-demo test-security
+PUBLIC_ORIGIN ?= https://doctor.example
+api:
+	uv run --frozen python -m apps.api --root runtime/control --origin "$(PUBLIC_ORIGIN)"
+control-worker:
+	uv run --frozen --env-file "$(INFERENCE_ENV)" python -m services.control --root runtime/control --socket "$(RUNNER_SOCKET)"
+containment-demo:
+	uv run --frozen python -m packages.security.demo --socket "$(RUNNER_SOCKET)" --output runtime/security
+test-security:
+	uv run --frozen pytest tests/security -v
+INFERENCE_ENV ?= runtime/inference.env

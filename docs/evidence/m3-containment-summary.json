@@ -1,0 +1,89 @@
+{
+  "milestone": "M3",
+  "recorded_at": "2026-11-08T23:28:36Z",
+  "environment": "Vultr Dallas, Ubuntu 24.04, dedicated rootless Docker",
+  "http_smoke": {
+    "transport": "loopback HTTP development mode",
+    "authorization": {
+      "anonymous_mutation": 401,
+      "csrf": 403,
+      "foreign_origin": 403,
+      "cross_session_experiment": 404,
+      "cross_session_cancel": 404,
+      "cross_session_artifact": 404,
+      "operator_without_token": 403,
+      "private_execution_surface": 404
+    },
+    "actual_connections": [
+      {
+        "target": "host_listener",
+        "connected": false,
+        "errno": 101
+      },
+      {
+        "target": "external",
+        "connected": false,
+        "errno": 101
+      }
+    ],
+    "listener_positive_control": true,
+    "probe_messages_received": 0,
+    "probe_cleanup": "removed",
+    "probe_job_id": "2beb6576-5bb3-484f-8cba-7d584f01d0ff",
+    "probe_source_hash": "sha256:492ad74a3432da6534c6b3031e840f45411bcc9e41cbc8bb5e8ea6bdb73f0f45",
+    "following_healthy": "VERIFIED_HEALTHY",
+    "scientific_checks": 22,
+    "api_ready_after": {
+      "status": "ready",
+      "policy": "sandbox-v1"
+    },
+    "policy": {
+      "version": "sandbox-v1",
+      "network": "none",
+      "fresh_container_per_job": true
+    },
+    "mode": "verification-only",
+    "model_calls": 0
+  },
+  "service_permissions": {
+    "api_runner_socket_denied": true,
+    "worker_runner_socket_allowed": true,
+    "api_docker_socket_denied": true,
+    "worker_docker_socket_denied": true,
+    "runner_docker_socket_allowed": true,
+    "api_worker_credential_denied": true,
+    "runner_worker_credential_denied": true,
+    "api_runner_database_denied": true,
+    "api_model_and_cloud_environment_absent": true,
+    "worker_api_and_cloud_environment_absent": true,
+    "runner_all_project_credentials_absent": true,
+    "credential_probe": "synthetic file only; no real model/cloud credential supplied"
+  },
+  "host_policy": {
+    "server_version": "29.9.3",
+    "cgroup_version": "2",
+    "security_options": [
+      "name=seccomp,profile=builtin",
+      "name=rootless",
+      "name=cgroupns"
+    ]
+  },
+  "cleanup": {
+    "containers_remaining": 0,
+    "services_stopped": true
+  },
+  "validation": {
+    "local_tests_passed": 82,
+    "local_runtime_skipped": 23,
+    "real_container_tests_passed": 23,
+    "runtime_suite_seconds": 248.37,
+    "ruff": "PASS",
+    "git_whitespace": "PASS"
+  },
+  "teardown": {
+    "resources_destroyed": 6,
+    "instance_lookup_http": 404,
+    "verified_at": "2026-11-08T23:28:36Z"
+  },
+  "scope": "Actual loopback HTTP and Linux-user smoke; HTTPS cookie flags tested through ASGI. Production TLS/public release remains M5. Scripted attacker proves deterministic policy denial, not live-model immunity."
+}

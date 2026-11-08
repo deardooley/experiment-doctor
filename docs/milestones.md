@@ -85,4 +85,36 @@ Trusted verifier image ID: `sha256:b0012ce97e78ee3c38f4a2bda9a5b90fb8584616bc1e7
 
 Teardown: no containers remained at the final host check. All six Terraform resources were destroyed; Vultr instance GET returned HTTP 404 at **2026-11-08T22:26:59Z**. No VM remains running. The session ran under one hour: conservative compute estimate $0.014. Three live inference calls used 2684 prompt and 2693 completion tokens, estimated $0.00094165 from live model pricing. Cumulative tracked M0–M2 estimate is approximately **$0.04294** (plus the small unmetered M0 probe, pending provider invoice), leaving about **$14.957** of the authorized $15 budget.
 
-Next milestone: **M3 — Containment**. Public authorization, the complete adversarial containment suite and visible containment demo remain to be implemented. See [scientific doctor operations](scientific-doctor.md) for runnable commands and boundaries.
+M3 containment and public authorization evidence follows below. See [scientific doctor operations](scientific-doctor.md) for the M2 numerical workflow.
+
+## M3 — Containment (2026-11-08)
+
+Status: **M3 complete.** The security suite passed on Vultr. Real denied network operations were followed by a verified healthy simulation and continued API readiness. The public API enforces signed sessions, CSRF and ownership; three separate Linux service identities were exercised against the real Unix sockets and data directories. No public production deployment or TLS termination is claimed.
+
+- [x] Public curated API: signed HttpOnly SameSite=Lax sessions, Secure cookies for HTTPS, exact-Origin/CSRF checks, ownership for experiments/events/cancellation/artifacts, opaque IDs, bounded bodies/connections, per-session/global queue caps and usage limits. Foreign/unknown IDs return 404. Forwarding headers are not trusted for rate identity.
+- [x] No generic public execution/upload/registration route. Operator probes are disabled by default and require a separate token plus normal session/CSRF checks. The only operator job is a fixed network demonstration; arbitrary source, images and destinations are rejected.
+- [x] Separate API, control-worker and runner processes/users/groups. The API cannot reach the runner socket or Docker; the worker reaches only the runner API; the runner alone reaches Docker. Private runner data and synthetic worker credentials were unreadable to the API. Role entry points remove other services' project credentials by re-exec, verified using synthetic wrong-role environment variables.
+- [x] Startup **and per-job** enforcement checks: rootless/cgroup-v2/builtin-seccomp availability, actual memory/swap/PID/CPU limits, non-root UID, Seccomp=2, NoNewPrivs=1, CapEff=0, loopback-only network, read-only root and bounded writable tmpfs. Candidate code never executes until these checks pass. Enforcement loss disables readiness/new claims and records a policy event.
+- [x] Real host-only/environment/cross-job canaries, read-only writes, writable tmpfs, symlink/hardlink/FIFO/oversize/active-output rejection, bounded log flooding, and real memory/PID/CPU pressure while the API stays responsive. Malformed/traversal archives are rejected without host extraction.
+- [x] Real injected logs followed by an explicitly scripted attacker proposal caused an actual deterministic verifier-edit denial and security event. This proves policy enforcement, not live-model immunity; no cosmetic security response or scripted live repair fallback was substituted.
+- [x] Separate application queue with atomic claims/caps, cancellation/report consistency, worker leases and persisted submission intents. Lost acceptance responses are recovered by idempotency key; interrupted jobs are cancelled/settled without resubmission, queued work survives and a subsequent healthy job succeeds.
+- [x] Integrity-checked attachment-only downloads, no active sandbox content under the API origin, no-store/nosniff/restrictive CSP. Periodic retention removes expired terminal public/private evidence, preserves active work and cleans unpublished blobs. Security audit records are bounded and do not contain credentials/cookies/request bodies.
+- [x] Final checks: **82 local tests passed**, 23 runtime cases explicitly skipped locally, Ruff and whitespace checks passed. The complete Vultr regression suite passed **23 cases in 248.37 seconds**. The separate-user loopback HTTP smoke and eleven service-permission/environment observations passed after the suite.
+
+Evidence: [curated containment/authorization/service summary](evidence/m3-containment-summary.json). Raw test logs, smoke downloads, private reports and credential files remain outside Git under ignored runtime paths (or were destroyed with the VM). The integration suite uses actual sandbox jobs with explicitly scripted/verification-only model modes; M3 made zero paid inference calls. M2's actual live Vultr repairs remain the independent live-model evidence.
+
+### Visible containment result
+
+The host listener passed its positive connection control. The sandbox's connection to that listener and to an external address both returned **errno 101 (network unreachable)**; zero probe messages reached the listener. Probe cleanup was recorded as removed. A new healthy experiment then passed all **22** primary/refinement/held-out checks, and the actual API returned ready. A successful TCP connection is never reported as blocked merely because a later send fails.
+
+The actual HTTP smoke observed 401 for anonymous mutations, 403 for CSRF/foreign Origin/missing operator credential, 404 for foreign experiment/cancel/artifact IDs and 404 for the private execution surface. HTTPS cookie flags were checked through ASGI tests; the three-user live smoke intentionally used explicit loopback HTTP development mode, with no public listener or production TLS claim.
+
+### Findings resolved during implementation
+
+The separate-user smoke caught SQLite's default shared-file mode 0640 blocking worker writes. The shared control database is now explicitly 0660 in doctor-control; private diagnosis/runner directories remain 0700. A cursor test initially read only the first 100 events and missed the later healthy event; it now follows ordered pages, with a regression test. Neither fix weakened the security controls.
+
+The trusted verifier image used for M3 was `sha256:7a92039d60938054e91db123b99ad10cb688697ce7a14a551b5668b4ce14fc62`; the simulation base remains the pinned M0/M2 Python digest. Host Docker was 29.9.3 with cgroup v2, builtin seccomp and rootless security options; details are in the curated summary.
+
+Teardown: all service processes were stopped, the dedicated daemon had **zero containers remaining**, and all six Terraform resources were destroyed. Vultr instance lookup returned HTTP 404 at **2026-11-08T23:28:36Z**. No dev VM remains running. This session was under one hour; conservative M3 compute estimate **$0.014**, with no M3 inference charge. Cumulative tracked M0–M3 estimate is approximately **$0.05694** plus the small unmetered M0 inference probe, pending provider billing; roughly **$14.943** remains authorized.
+
+Next milestone: **M4 — Product interface**. Use the existing session bootstrap, CSRF header, owned cursor events, typed reports and attachment routes. Render model/source/log data as escaped text. Production HTTPS, versioned installation and public release operations remain M5. See [security operations](security.md) and [threat model](threat-model.md) for commands and boundaries.

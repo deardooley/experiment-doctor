@@ -61,7 +61,7 @@ def enforce_runtime(tmp_path_factory):
     (SLEEP, "TIMED_OUT", "TIMEOUT"), (OOM, "FAILED", "OOM")],
     ids=["healthy", "exception", "timeout", "oom"])
 def test_real_execution(tmp_path, code, expected, reason):
-    settings = make_settings(tmp_path, deadline=1 if code == SLEEP else 30)
+    settings = make_settings(tmp_path, deadline=2 if code == SLEEP else 30)
     store = Store(tmp_path / "runner.sqlite3")
     runtime = DockerRuntime(settings)
     supervisor = Supervisor(store, runtime, settings)

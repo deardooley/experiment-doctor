@@ -40,6 +40,16 @@ class LocalExecutionClient:
         response.raise_for_status()
         return JobResult.model_validate(response.json())
 
+    async def by_key(self, key: str) -> JobResult | None:
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", key):
+            raise ValueError("invalid idempotency key")
+        response = await self.client.get(f"/execution/v1/jobs/by-key/{key}")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return JobResult.model_validate(response.json())
+
     async def cancel(self, job_id: UUID) -> JobResult:
         response = await self.client.post(f"/execution/v1/jobs/{job_id}/cancel")
         response.raise_for_status()

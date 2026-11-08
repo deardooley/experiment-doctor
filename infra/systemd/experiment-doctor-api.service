@@ -1,0 +1,20 @@
+[Unit]
+Description=Experiment Doctor public control API (loopback only)
+After=network-online.target
+
+[Service]
+Type=simple
+User=doctor-api
+Group=doctor-control
+WorkingDirectory=/opt/experiment-doctor/current
+EnvironmentFile=/etc/experiment-doctor/api.env
+ExecStart=/opt/experiment-doctor/current/.venv/bin/python -m apps.api --root /var/lib/experiment-doctor/control --origin ${PUBLIC_ORIGIN} --port 8000
+UMask=0007
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/experiment-doctor/control
+
+[Install]
+WantedBy=multi-user.target

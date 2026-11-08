@@ -2,7 +2,7 @@
 
 A scientific simulation repair service with independently checked evidence and disposable execution sandboxes. Original project code is covered by LICENSE. See IMPLEMENTATION_PLAN.md for scope and milestones.
 
-M0–M2 are complete: live Vultr-driven decay repairs passed independent primary/refinement/held-out checks in fresh containers, and false success was rejected. Durable jobs, artifact delivery and crash recovery are verified. See [milestone evidence](docs/milestones.md). Temporary test VMs were destroyed; full containment and the public product are subsequent milestones.
+M0–M3 are complete: live Vultr-driven repairs passed independent checks; false success was rejected; containment, session authorization and separate service permissions were measured on Vultr. See [milestone evidence](docs/milestones.md). Temporary test VMs were destroyed. The browser product and production HTTPS release remain M4/M5.
 
 Prerequisites: Python 3.12 or 3.13, uv, Terraform >=1.5.7, and a dedicated Linux rootless Docker daemon with cgroup v2 delegation. Docker Desktop alone does not satisfy the target runtime gate.
 
@@ -24,3 +24,5 @@ make infra-check
 Terraform starts the secret-free VM bootstrap and defaults to no IPv6. Actual plan/region/OS IDs and costs must be checked before an operator reviews and applies a plan. The user authorized Dallas dev/test resources with a $15 total limit; see [VM operations and budget](docs/dev-vm.md). `infra/host/setup-runtime` installs the dedicated rootless daemon after bootstrap; it does not deploy application services.
 
 The [private execution guide](docs/execution.md) covers `make runner`, the Unix-socket ExecutionClient, and `make test-runtime`. The [scientific doctor guide](docs/scientific-doctor.md) covers `make build-verifier` and `make diagnose`, the four curated fixtures, patch policy, trusted checks and provenance reports. Full replay and public deployment commands are future work.
+
+The [security operations guide](docs/security.md) covers the public API, separate control worker, signed sessions/CSRF, operator-only network demonstration, service identities and retention. `make test-security` runs authorization checks; `make containment-demo` performs a real denied connection followed by verified healthy computation on the Linux runner host. See the [threat model](docs/threat-model.md) for measured boundaries and shared-kernel limitations.

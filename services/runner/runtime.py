@@ -45,6 +45,23 @@ with tarfile.open(fileobj=sys.stdout.buffer, mode='w|') as archive:
         member.size = len(data)
         archive.addfile(member, io.BytesIO(data))
 '''
+CONTROL_ASSERTIONS = '''
+import os, pathlib
+base = pathlib.Path('/sys/fs/cgroup')
+assert (base/'memory.max').read_text().strip() == '536870912'
+assert (base/'memory.swap.max').read_text().strip() == '0'
+assert (base/'pids.max').read_text().strip() == '64'
+quota, period = map(int, (base/'cpu.max').read_text().split())
+assert quota / period == 1
+status = dict(line.split(':',1) for line in pathlib.Path('/proc/self/status').read_text().splitlines() if ':' in line)
+assert status['Seccomp'].strip() == '2' and status['NoNewPrivs'].strip() == '1'
+assert int(status['CapEff'].strip(),16) == 0 and os.getuid() == 65532
+assert [p.name for p in pathlib.Path('/sys/class/net').iterdir()] == ['lo']
+assert os.statvfs('/').f_flag & os.ST_RDONLY
+for path, size in [('/tmp',32*1024*1024),('/output',64*1024*1024)]:
+    fs = os.statvfs(path)
+    assert fs.f_blocks * fs.f_frsize == size and not fs.f_flag & os.ST_RDONLY
+'''
 
 
 class RuntimeFailure(RuntimeError):
@@ -52,6 +69,10 @@ class RuntimeFailure(RuntimeError):
 
 
 class OutputLimit(RuntimeFailure):
+    pass
+
+
+class EnforcementUnavailable(RuntimeFailure):
     pass
 
 
@@ -245,6 +266,14 @@ class DockerRuntime:
         verification = spec.kind == "verification"
         image = self.settings.verifier_image if verification else self.settings.image
         poll()
+        try:
+            info = json.loads(self.command("info", "--format={{json .}}"))
+            security = info["SecurityOptions"]
+            if (str(info["CgroupVersion"]) != "2" or not any("name=rootless" in value for value in security)
+                    or not any("name=seccomp,profile=builtin" in value for value in security)):
+                raise EnforcementUnavailable("required runtime controls unavailable")
+        except (RuntimeFailure, ValueError, KeyError, TypeError, TimeoutError) as exc:
+            raise EnforcementUnavailable("runtime policy cannot be confirmed") from exc
         self.command("create", "--init", "--name", name, "--pull=never", "--label",
                      f"{LABEL}={self.settings.scope}", "--network=none", "--read-only",
                      "--user=65532:65532", "--cap-drop=ALL", "--security-opt=no-new-privileges",
@@ -256,6 +285,12 @@ class DockerRuntime:
                      "import time; time.sleep(86400)")
         poll()
         self.command("start", name)
+        poll()
+        try:
+            self.command("exec", name, "/usr/bin/env", "-i", "PATH=/usr/local/bin:/usr/bin:/bin",
+                         "python", "-I", "-c", CONTROL_ASSERTIONS)
+        except (RuntimeFailure, TimeoutError) as exc:
+            raise EnforcementUnavailable("job controls are not enforced") from exc
         poll()
         if verification:
             payload = self.verification_payload(spec)
