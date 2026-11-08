@@ -1,0 +1,8 @@
+M1: Execution vertical slice
+
+- Implement the private job API and Unix-socket execution client
+- Add durable SQLite claims, leases, cancellation, events and restart recovery
+- Run each job in a fresh constrained rootless container with bounded artifact collection
+- Add the healthy decay fixture, immutable artifact manifests and periodic cleanup
+- Validate real timeout, OOM, cancellation and crash recovery on Vultr
+- Document execution operations, runtime CI, teardown evidence and budget usage

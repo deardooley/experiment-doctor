@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.2, pluggy-1.7.0 -- /opt/experiment-doctor/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /opt/experiment-doctor
+configfile: pyproject.toml
+plugins: anyio-4.16.0
+collecting ... collected 8 items
+
+tests/integration/test_runtime.py::test_real_execution[healthy] PASSED
+tests/integration/test_runtime.py::test_real_execution[exception] PASSED
+tests/integration/test_runtime.py::test_real_execution[timeout] PASSED
+tests/integration/test_runtime.py::test_real_execution[oom] PASSED
+tests/integration/test_runtime.py::test_real_cancel_and_next_job PASSED
+tests/integration/test_runtime.py::test_real_killed_worker_reconciliation PASSED
+tests/integration/test_runtime.py::test_real_unix_socket_client {"uds_submit_status_artifacts_cleanup": "PASS"}
+PASSED
+tests/integration/test_runtime.py::test_real_runner_crash_and_queued_recovery INFO:     Started server process [17342]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [18114]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [18114]
+PASSED
+
+========================= 8 passed in 69.16s (0:01:09) =========================

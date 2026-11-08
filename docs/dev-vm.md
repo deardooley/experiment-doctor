@@ -34,3 +34,12 @@ terraform -chdir=infra/terraform destroy -input=false -auto-approve \
 ```
 
 Verify the instance is absent from Vultr after destroy. Terraform state may contain the initial VM password: keep its directory private even after teardown.
+
+## Spending ledger (estimates pending provider invoice)
+
+| Session | Rate | Conservative compute estimate | Teardown verification |
+|---|---|---|---|
+| M0 | $0.014/hour | $0.014 (one hour) | HTTP 404 at 2026-11-08T21:36:35Z |
+| M1 | $0.014/hour | $0.014 (one hour) | All six resources destroyed; HTTP 404 at 2026-11-08T22:02:11Z |
+
+Estimated total $0.028; estimated remaining authorization $14.972. No running VM, snapshots or paid storage were retained.

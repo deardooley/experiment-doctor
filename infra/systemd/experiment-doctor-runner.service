@@ -1,0 +1,27 @@
+[Unit]
+Description=Experiment Doctor private execution runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=doctor-runner
+Group=doctor-execution
+WorkingDirectory=/opt/experiment-doctor/current
+EnvironmentFile=/etc/experiment-doctor/runner.env
+ExecStart=/opt/experiment-doctor/current/.venv/bin/python -m services.runner --root /var/lib/experiment-doctor/runner --socket /run/experiment-doctor/runner.sock --image ${SIMULATION_IMAGE} --scope demo
+RuntimeDirectory=experiment-doctor
+RuntimeDirectoryMode=0750
+UMask=0007
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=150
+TimeoutStopSec=50
+KillMode=control-group
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/experiment-doctor/runner /run/experiment-doctor
+
+[Install]
+WantedBy=multi-user.target

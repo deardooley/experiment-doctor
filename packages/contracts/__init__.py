@@ -67,8 +67,12 @@ class JobResult(Contract):
     job_id: UUID
     status: JobStatus
     exit_code: int | None = None
-    reason: Literal["SUCCESS", "TIMEOUT", "OOM", "CANCELLED", "POLICY_DENIED", "RUNTIME_ERROR", "LOST"]
+    reason: Literal["SUCCESS", "TIMEOUT", "OOM", "CANCELLED", "POLICY_DENIED", "RUNTIME_ERROR", "LOST"] | None = None
     policy_version: Literal["sandbox-v1"] = "sandbox-v1"
     cleanup: Literal["pending", "removed", "failed"]
+    created_at: float | None = None
+    started_at: float | None = None
+    ended_at: float | None = None
+    artifact_manifest_hash: str | None = None
 
 

@@ -12,3 +12,9 @@ infra-check:
 	terraform -chdir=infra/terraform fmt -check
 	terraform -chdir=infra/terraform init -backend=false
 	terraform -chdir=infra/terraform validate
+
+.PHONY: runner test-runtime
+runner:
+	uv run --frozen python -m services.runner --root runtime/runner --socket runtime/runner.sock --image "$(SIMULATION_IMAGE)"
+test-runtime:
+	ED_RUNTIME_TESTS=1 uv run --frozen pytest tests/integration/test_runtime.py -v
