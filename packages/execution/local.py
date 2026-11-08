@@ -15,6 +15,21 @@ class LocalExecutionClient:
     async def close(self):
         await self.client.aclose()
 
+    async def configuration(self):
+        response = await self.client.get("/execution/v1/config")
+        response.raise_for_status()
+        return response.json()
+
+    async def register_candidate(self, code: str):
+        response = await self.client.post("/execution/v1/bundles", json={"code": code})
+        response.raise_for_status()
+        return response.json()["bundle_hash"]
+
+    async def artifact_manifest(self, job_id: UUID):
+        response = await self.client.get(f"/execution/v1/jobs/{job_id}/artifacts")
+        response.raise_for_status()
+        return response.json()
+
     async def submit(self, spec: JobSpec) -> UUID:
         response = await self.client.post("/execution/v1/jobs", json=spec.model_dump(mode="json"))
         response.raise_for_status()

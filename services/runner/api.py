@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from packages.contracts import JobResult, JobSpec
+from packages.contracts import CandidateBundle, JobResult, JobSpec
 from services.runner.runtime import DockerRuntime
 from services.runner.store import Conflict, QueueFull, Store
 from services.worker.supervisor import Supervisor
@@ -87,6 +87,17 @@ def create_app(settings, runtime=None):
             settings.authorize(spec)
         except ValueError:
             raise HTTPException(403, "job denied by runner allowlist") from None
+        if spec.kind == "verification":
+            for source_id in spec.verification_inputs:
+                try:
+                    row = store.get(source_id)
+                    source = JobSpec.model_validate_json(row["spec"])
+                except (KeyError, ValueError):
+                    raise HTTPException(403, "unknown verifier evidence") from None
+                if (source.kind != "simulation" or source.experiment_id != spec.experiment_id
+                        or source.attempt_id != spec.attempt_id
+                        or row["status"] in ("QUEUED", "RUNNING")):
+                    raise HTTPException(403, "verifier evidence ownership or state mismatch")
         ready()
         try:
             job_id = store.submit(spec)
@@ -95,6 +106,20 @@ def create_app(settings, runtime=None):
         except QueueFull:
             raise HTTPException(429, "queue full") from None
         return {"job_id": job_id}
+
+    @app.post("/execution/v1/bundles", status_code=201)
+    def register(bundle: CandidateBundle):
+        ready()
+        try:
+            return {"bundle_hash": settings.register_bundle(bundle.code)}
+        except ValueError:
+            raise HTTPException(403, "candidate rejected") from None
+
+    @app.get("/execution/v1/config")
+    def configuration():
+        from packages.verification.trusted import SPEC_HASH, VERIFIER_HASH
+        return {"simulation_image": settings.image, "verifier_image": settings.verifier_image,
+                "verifier_hash": VERIFIER_HASH, "spec_hash": SPEC_HASH}
 
     @app.get("/execution/v1/jobs/{job_id}", response_model=JobResult)
     def status(job_id: UUID):

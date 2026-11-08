@@ -17,6 +17,7 @@ class Cancelled(Exception):
 class Supervisor:
     def __init__(self, store, runtime, settings):
         self.store, self.runtime, self.settings = store, runtime, settings
+        runtime.store = store
         self.owner = str(uuid4())
         self.stop = threading.Event()
         self.ready = False

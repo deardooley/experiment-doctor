@@ -51,6 +51,38 @@ Implementation notes: a per-job keeper plus Docker init preserves tmpfs until ou
 
 Scope remaining: M2 adds the trusted verifier, model/control worker, repair policy, attempts and scientific reports. M3 completes containment/authorization probes. Versioned deployment and system-service installation are M5; the supplied unit is a template, not a claimed deployed application.
 
-Next milestone: **M2 — Scientific doctor**.
+M2 scientific-doctor evidence follows below.
 
 M1 teardown: all six Terraform resources destroyed; Vultr instance lookup returned HTTP 404 at `2026-11-08T22:02:11Z`. No dev VM remains running. This session used under one hour at $0.014/hour; conservative compute estimate is $0.014, pending final billing. Combined M0+M1 estimate is $0.028, leaving approximately $14.972 of the authorized $15 total.
+
+## M2 — Scientific doctor (2026-11-08)
+
+Status: **M2 complete.** Live Vultr proposals repaired both coarse-step and wrong-sign decay fixtures. Each original run exited successfully but failed independent scientific checks; each repaired candidate passed primary, dt/2 refinement and held-out k=0.5 checks in a separate trusted verifier container. The false-success fixture exited zero and printed self-attestation but was independently rejected.
+
+- [x] Versioned independent decay spec and stdlib-only checker, separate trusted verifier image, bounded numeric parsing, units/header/grid/finite-value checks, initial/endpoint/shape checks, analytic accuracy, refinement convergence and held-out parameters. Missing evidence fails explicitly; unknown specs are UNVERIFIED.
+- [x] Runner resolves evidence by immutable job IDs with experiment/attempt ownership, parameters, source and output hashes. Verifier containers receive numeric data only, never candidate code. Result schema/hashes/bindings are validated outside the sandbox; a pass requires all 22 declared independent checks.
+- [x] Explicit bounded intake/baseline/diagnose/authorize/rerun/decide/report workflow. At most baseline plus two repairs, twelve jobs, five model calls, 30-second provider timeout, 2048 completion tokens per call and 180-second diagnosis. Auxiliary simulations are skipped for invalid primary evidence, with an actual failing verifier result still obtained.
+- [x] Deterministic patch policy permits only simulation.py and dt. It protects the equation, k/x0/t_end, verifier/reference/tolerances, runtime, images and tools. No shell/host/infrastructure tool is exposed. All generated code executes only in ordinary constrained runner sandboxes.
+- [x] Live Vultr JSON-object proposals with strict schema validation, bounded response streams and token usage; no scripted production fallback or hidden retry. Provider/schema/configuration failure yields INCOMPLETE while retaining actual completed evidence. Policy denial yields BLOCKED.
+- [x] Separate control-plane SQLite journal, immutable original/candidate source snapshots, source/parameter diff, model hypothesis/evidence keys, before/after measurements, job/artifact manifests, runtime/image/spec/checker/Git provenance and deterministic typed reports. Full generated artifacts stay under ignored runtime directories.
+- [x] CLI, healthy/coarse/wrong-sign/false-success registry, build/diagnose commands, verifier-only mode, documentation and runtime CI updated. A local archive of the exact trusted verifier image was preserved before teardown.
+- [x] Final local checks: **57 passed**, 12 runtime cases explicitly skipped locally; Ruff and git diff whitespace check pass. Real Dallas regression suite: **12 passed in 138.68 seconds**, including four scientific workflows with a scripted model and the complete eight-case M1 lifecycle/recovery suite. Six saved live verifier outputs were rechecked against their stored hashes and final strict result schema.
+
+### Live outcomes
+
+| Fixture | Baseline execution / science | Final scientific outcome | Max primary absolute error before → after | Live model calls / jobs |
+|---|---|---|---|---|
+| decay-healthy | SUCCEEDED / PASS | VERIFIED_HEALTHY | 0.00184710 → same | 0 / 4 |
+| decay-coarse-step | SUCCEEDED / FAIL | VERIFIED_REPAIR | 2.24326205 → 0.00184710 | 1 / 6 |
+| decay-wrong-sign | SUCCEEDED / FAIL | VERIFIED_REPAIR | 144.76603449 → 0.00184710 | 1 / 6 |
+| decay-false-success | SUCCEEDED / FAIL | NOT_REPAIRED (verification-only) | 144.76603449 → same | 0 / 2 |
+
+Tolerance is 0.01*x0 (x0=1); repaired passes also include refinement and held-out results. This establishes only the stated model/parameters/tolerances, not general scientific validity.
+
+Evidence: [live metadata summary](evidence/m2-live-summary.json), [actual inference usage](evidence/m2-inference-usage.json), [model capabilities/pricing](evidence/m2-inference-capabilities.json), [real-container regression output](evidence/m2-dallas-runtime-tests.txt). Live model: mimo-v2.6-flash. One earlier trial exhausted its 2048 completion-token budget and was honestly finalized INCOMPLETE; it is included in usage/cost evidence. After checking the provider's documented controls, a new diagnosis used disabled reasoning and JSON-object output and succeeded. The independent JSON proposal path is used; native tool support is not claimed as tested.
+
+Trusted verifier image ID: `sha256:b0012ce97e78ee3c38f4a2bda9a5b90fb8584616bc1e76027c02ec76293686db`. Simulation base: `python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b`. The image archive remains private at runtime/dev-vm/m2-verifier-image.tar.gz; archive SHA-256 is `426380df89d2bf898df6a5922cb5862abfb86e13192bebe7c4e61cc54e71c4bc`. Public image releases and a complete replay command remain M5 work.
+
+Teardown: no containers remained at the final host check. All six Terraform resources were destroyed; Vultr instance GET returned HTTP 404 at **2026-11-08T22:26:59Z**. No VM remains running. The session ran under one hour: conservative compute estimate $0.014. Three live inference calls used 2684 prompt and 2693 completion tokens, estimated $0.00094165 from live model pricing. Cumulative tracked M0–M2 estimate is approximately **$0.04294** (plus the small unmetered M0 probe, pending provider invoice), leaving about **$14.957** of the authorized $15 budget.
+
+Next milestone: **M3 — Containment**. Public authorization, the complete adversarial containment suite and visible containment demo remain to be implemented. See [scientific doctor operations](scientific-doctor.md) for runnable commands and boundaries.

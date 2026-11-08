@@ -1,0 +1,1 @@
+{"decay-healthy":{"source":"decay/simulation.py","dt":0.01},"decay-coarse-step":{"source":"decay/simulation.py","dt":2.5},"decay-wrong-sign":{"source":"fixtures/wrong-sign.py","dt":0.01},"decay-false-success":{"source":"fixtures/false-success.py","dt":0.01}}

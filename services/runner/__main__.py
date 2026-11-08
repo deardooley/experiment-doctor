@@ -43,10 +43,12 @@ def main():
     parser.add_argument("--socket", type=Path, required=True)
     parser.add_argument("--image", required=True)
     parser.add_argument("--scope", default="dev")
+    parser.add_argument("--verifier-image")
     args = parser.parse_args()
     code = (Path(__file__).resolve().parents[2] / "experiments/decay/simulation.py").read_bytes()
     settings = Settings(root=args.root.resolve(), image=args.image,
-                        bundles={"sha256:" + hashlib.sha256(code).hexdigest(): code}, scope=args.scope)
+                        bundles={"sha256:" + hashlib.sha256(code).hexdigest(): code}, scope=args.scope,
+                        verifier_image=args.verifier_image)
     serve(settings, args.socket.resolve())
 
 

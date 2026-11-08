@@ -1,0 +1,43 @@
+{
+  "model": "mimo-v2.6-flash",
+  "includes_initial_truncated_call": true,
+  "calls": [
+    {
+      "experiment_id": "aa81defb-b1c7-46e0-ad4e-c081e71c3cdb",
+      "outcome": "INCOMPLETE",
+      "model_usage": [
+        {
+          "prompt_tokens": 889,
+          "completion_tokens": 2048,
+          "total_tokens": 2937
+        }
+      ]
+    },
+    {
+      "experiment_id": "e4488762-aa31-469c-b09b-46da9d1184c7",
+      "outcome": "VERIFIED_REPAIR",
+      "model_usage": [
+        {
+          "prompt_tokens": 891,
+          "completion_tokens": 307,
+          "total_tokens": 1198
+        }
+      ]
+    },
+    {
+      "experiment_id": "c7bb6fe5-1ff9-4bef-aa18-dd6980048349",
+      "outcome": "VERIFIED_REPAIR",
+      "model_usage": [
+        {
+          "prompt_tokens": 904,
+          "completion_tokens": 338,
+          "total_tokens": 1242
+        }
+      ]
+    }
+  ],
+  "total_prompt_tokens": 2684,
+  "total_completion_tokens": 2693,
+  "estimated_inference_usd": 0.0009416499999999998,
+  "pricing_source": "Live Vultr /v1/models?format=openrouter metadata; estimate pending invoice"
+}

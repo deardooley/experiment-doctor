@@ -1,0 +1,6 @@
+# Only trusted verifier sources and Dockerfiles may enter the current build context.
+**
+!containers/
+!containers/**
+!verifiers/
+!verifiers/**

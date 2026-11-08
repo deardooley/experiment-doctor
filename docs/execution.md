@@ -1,6 +1,6 @@
 # M1 private execution vertical slice
 
-The runner accepts only typed simulation jobs whose image and source SHA-256 match its server-owned allowlist. The CLI registers the original `experiments/decay/simulation.py`; parameters are separately bound in the immutable JobSpec. No caller-supplied command, mount, host path or image is accepted. Verifier execution and candidate registration are M2 work.
+The M1 runner foundation accepts typed simulation jobs whose image and source SHA-256 match its server-owned registry. The CLI registers the original `experiments/decay/simulation.py`; parameters are separately bound in the immutable JobSpec. No caller-supplied command, mount, host path or arbitrary image is accepted. M2 adds bounded private candidate registration and a separately pinned trusted verifier; see [scientific doctor](scientific-doctor.md).
 
 Run on a Linux host with the dedicated rootless Docker service already installed:
 
@@ -29,7 +29,7 @@ Private routes:
 | `GET /execution/v1/artifacts/{id}` | Integrity-checked attachment, octet-stream and nosniff |
 | `/health/live`, `/health/ready` | Process liveness versus preflight, DB, worker and disk readiness |
 
-The runner's SQLite WAL database is its private execution journal, **not the application database**. It stores jobs, leases, cancellation requests, lifecycle events and artifact metadata. Only the runner supervisor reads this journal. The future model/control worker accesses the private API through ExecutionClient and cannot access Docker. The `services/worker/supervisor.py` module is the runner's execution supervisor, not the M2 model worker.
+The runner's SQLite WAL database is its private execution journal, **not the application database**. It stores jobs, leases, cancellation requests, lifecycle events and artifact metadata. Only the runner reads this journal. The model/control worker in packages/agent accesses the private API through ExecutionClient and cannot access Docker. The `services/worker/supervisor.py` module is the runner's execution supervisor, not the model worker.
 
 Claims use an immediate SQLite transaction, unique idempotency keys and owner/lease heartbeats. At most one job runs at a time and at most ten are queued/running. Startup holds a singleton lock, removes scope-labeled containers, proves runtime controls, and marks interrupted jobs LOST without retrying them. Queued jobs survive. The periodic janitor runs between jobs, reconciles orphaned containers and expires terminal-job artifacts after 24 hours. New work is refused below a 64-MiB free-disk reserve. Cleanup failure makes readiness fail and stops further claims.
 
@@ -48,4 +48,4 @@ ED_RUNTIME_TESTS=1 make test-runtime  # explicit Linux/rootless opt-in; no crede
 
 The real runtime suite exercises healthy numeric output, exceptions, OOM, timeout, cancellation followed by a healthy job, forced worker death, and runner crash/restart over the Unix socket. Unit tests use fixed fake outputs and never execute candidate source on the host.
 
-The systemd unit in `infra/systemd/` is a deployment template. Create the `doctor-execution` group, grant only doctor-runner and the future control worker membership, and keep the runner data directory mode 0700. Its runner.env contains only the digest-pinned SIMULATION_IMAGE and rootless DOCKER_HOST (with the actual runner UID), never inference/cloud keys. Installing versioned releases and service users/groups reproducibly remains M5 work.
+The systemd unit in `infra/systemd/` is a deployment template. Create the `doctor-execution` group, grant only doctor-runner and the control worker membership, and keep the runner data directory mode 0700. Its runner.env contains only the digest-pinned SIMULATION_IMAGE, VERIFIER_IMAGE and rootless DOCKER_HOST (with the actual runner UID), never inference/cloud keys. Installing versioned releases and service users/groups reproducibly remains M5 work.

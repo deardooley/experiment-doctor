@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get install -y python3-venv
           sudo install -d /opt/experiment-doctor
-          tar --exclude=__pycache__ -cf /tmp/source.tar services packages experiments scripts tests pyproject.toml uv.lock
+          tar --exclude=__pycache__ -cf /tmp/source.tar services packages experiments verifiers containers scripts tests pyproject.toml uv.lock .dockerignore
           sudo tar -xf /tmp/source.tar -C /opt/experiment-doctor
           sudo chown -R doctor-runner:doctor-runner /opt/experiment-doctor
           cd /opt/experiment-doctor
@@ -30,4 +30,6 @@ jobs:
           runner_uid=$(id -u doctor-runner)
           image=python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
           sudo -u doctor-runner env DOCKER_HOST=unix:///run/user/$runner_uid/docker.sock docker pull "$image"
-          sudo -u doctor-runner env DOCKER_HOST=unix:///run/user/$runner_uid/docker.sock XDG_RUNTIME_DIR=/run/user/$runner_uid SIMULATION_IMAGE="$image" ED_RUNTIME_TESTS=1 .venv/bin/python -m pytest tests/integration/test_runtime.py -v
+          sudo -u doctor-runner env DOCKER_HOST=unix:///run/user/$runner_uid/docker.sock docker build --pull=false -f containers/verifier.Dockerfile -t experiment-doctor-verifier:ci .
+          verifier=$(sudo -u doctor-runner env DOCKER_HOST=unix:///run/user/$runner_uid/docker.sock docker image inspect --format '{{.Id}}' experiment-doctor-verifier:ci)
+          sudo -u doctor-runner env DOCKER_HOST=unix:///run/user/$runner_uid/docker.sock XDG_RUNTIME_DIR=/run/user/$runner_uid SIMULATION_IMAGE="$image" VERIFIER_IMAGE="$verifier" ED_RUNTIME_TESTS=1 .venv/bin/python -m pytest tests/integration -v

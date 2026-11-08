@@ -1,0 +1,40 @@
+{
+  "id": "mimo-v2.6-flash",
+  "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.00000025"
+  },
+  "supported_parameters": [
+    "temperature",
+    "top_p",
+    "top_k",
+    "frequency_penalty",
+    "presence_penalty",
+    "repetition_penalty",
+    "max_tokens",
+    "max_completion_tokens",
+    "logprobs",
+    "top_logprobs",
+    "seed",
+    "response_format",
+    "structured_outputs",
+    "stop",
+    "tools",
+    "tool_choice",
+    "reasoning",
+    "reasoning_effort"
+  ],
+  "reasoning": {
+    "mandatory": false,
+    "supports_max_tokens": true,
+    "supported_efforts": [
+      "ultra",
+      "max",
+      "xhigh",
+      "high",
+      "medium",
+      "low",
+      "minimal"
+    ]
+  }
+}

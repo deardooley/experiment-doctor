@@ -113,7 +113,7 @@ def bounded_process(argv, payload=None, limit=MAX_LOG, timeout=10, poll=None):
     return process.returncode, bytes(buffers[0]), bytes(buffers[1])
 
 
-def parse_artifacts(raw):
+def parse_artifacts(raw, allowed_name="trajectory.csv"):
     if len(raw) > MAX_ARTIFACTS + 65536:
         raise OutputLimit("archive limit")
     outputs = {}
@@ -124,7 +124,7 @@ def parse_artifacts(raw):
             if member.isdir() and member.name in (".", "./", "output", "output/"):
                 continue
             name = member.name.removeprefix("./")
-            if not member.isfile() or member.linkname or name != "trajectory.csv":
+            if not member.isfile() or member.linkname or name != allowed_name:
                 raise RuntimeFailure("artifact path or type denied")
             if name in outputs or member.size > MAX_ARTIFACTS - 2 * MAX_LOG:
                 raise OutputLimit("artifact size or duplicate denied")
@@ -143,6 +143,7 @@ class Settings:
     scope: str = "dev"
     deadline: float = 30
     disk_reserve: int = 64 * 1024 * 1024
+    verifier_image: str | None = None
 
     def __post_init__(self):
         if not re.fullmatch(r"[a-zA-Z0-9./:_-]+@sha256:[a-f0-9]{64}", self.image):
@@ -155,11 +156,52 @@ class Settings:
             if len(code) > 32768 or digest != "sha256:" + hashlib.sha256(code).hexdigest():
                 raise ValueError("invalid immutable bundle")
             code.decode("utf-8")
+        if self.verifier_image is not None and not re.fullmatch(
+                r"(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}", self.verifier_image):
+            raise ValueError("immutable verifier image required")
+
+    def register_bundle(self, code):
+        raw = code.encode()
+        if len(raw) > 32768:
+            raise ValueError("candidate source exceeds limit")
+        digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+        directory = self.root / "bundles"
+        directory.mkdir(mode=0o700, exist_ok=True)
+        path = directory / digest[7:]
+        try:
+            with path.open("xb") as stream:
+                stream.write(raw)
+                stream.flush()
+                import os
+                os.fsync(stream.fileno())
+        except FileExistsError:
+            if path.is_symlink() or path.read_bytes() != raw:
+                raise ValueError("candidate identity mismatch")
+        return digest
+
+    def source(self, digest):
+        if digest in self.bundles:
+            return self.bundles[digest]
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", digest):
+            raise ValueError("invalid bundle hash")
+        path = self.root / "bundles" / digest[7:]
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 32768:
+            raise ValueError("unknown immutable candidate")
+        code = path.read_bytes()
+        if "sha256:" + hashlib.sha256(code).hexdigest() != digest:
+            raise ValueError("candidate integrity failure")
+        return code
 
     def authorize(self, spec):
-        if (spec.kind != "simulation" or spec.image_digest != self.image.split("@")[1]
-                or spec.bundle_hash not in self.bundles):
-            raise ValueError("job is not in the runner's simulation allowlist")
+        if spec.kind == "verification":
+            from packages.verification.trusted import VERIFIER_HASH
+            if (not self.verifier_image or spec.image_digest != self.verifier_image.split("@")[-1]
+                    or spec.bundle_hash != VERIFIER_HASH):
+                raise ValueError("unknown trusted verifier")
+        else:
+            if spec.image_digest != self.image.split("@")[1]:
+                raise ValueError("unknown simulation image")
+            self.source(spec.bundle_hash)
 
 
 class DockerRuntime:
@@ -173,6 +215,8 @@ class DockerRuntime:
         return stdout
 
     def preflight(self):
+        if self.settings.verifier_image:
+            self.command("image", "inspect", self.settings.verifier_image)
         script = Path(__file__).resolve().parents[2] / "scripts" / "doctor"
         import os
         env = dict(os.environ, SIMULATION_IMAGE=self.settings.image)
@@ -198,6 +242,8 @@ class DockerRuntime:
 
     def execute(self, job_id, spec, poll):
         name = self.name(job_id)
+        verification = spec.kind == "verification"
+        image = self.settings.verifier_image if verification else self.settings.image
         poll()
         self.command("create", "--init", "--name", name, "--pull=never", "--label",
                      f"{LABEL}={self.settings.scope}", "--network=none", "--read-only",
@@ -205,17 +251,22 @@ class DockerRuntime:
                      "--cpus=1", "--memory=512m", "--memory-swap=512m", "--pids-limit=64",
                      "--log-driver=none", "--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=32m",
                      "--tmpfs=/output:rw,noexec,nosuid,nodev,size=64m",
-                     "--entrypoint=/usr/bin/env", self.settings.image, "-i",
+                     "--entrypoint=/usr/bin/env", image, "-i",
                      "PATH=/usr/local/bin:/usr/bin:/bin", "python", "-I", "-c",
                      "import time; time.sleep(86400)")
         poll()
         self.command("start", name)
         poll()
-        payload = json.dumps({"code": self.settings.bundles[spec.bundle_hash].decode(),
-                              "parameters": spec.parameters.model_dump()}).encode()
+        if verification:
+            payload = self.verification_payload(spec)
+            bootstrap = "import subprocess,sys; sys.exit(subprocess.call([sys.executable,'-I','/verifier/check.py']))"
+        else:
+            payload = json.dumps({"code": self.settings.source(spec.bundle_hash).decode(),
+                                  "parameters": spec.parameters.model_dump()}).encode()
+            bootstrap = BOOTSTRAP
         code, stdout, stderr = bounded_process(
             ["docker", "exec", "-i", name, "/usr/bin/env", "-i",
-             "PATH=/usr/local/bin:/usr/bin:/bin", "python", "-I", "-c", BOOTSTRAP],
+             "PATH=/usr/local/bin:/usr/bin:/bin", "python", "-I", "-c", bootstrap],
             payload=payload, timeout=self.settings.deadline, poll=poll)
         state = json.loads(self.command("inspect", "--format={{json .State}}", name))
         # OOM of an exec child can leave the keeper alive; inspect cgroup events too.
@@ -232,9 +283,40 @@ class DockerRuntime:
         poll()
         archive = self.command("exec", name, "/usr/bin/env", "-i",
                                "PATH=/usr/local/bin:/usr/bin:/bin", "python", "-I", "-c",
-                               EXPORTER, timeout=10, limit=MAX_ARTIFACTS + 65536)
-        outputs = parse_artifacts(archive)
+                               EXPORTER.replace("trajectory.csv", "verification.json") if verification else EXPORTER,
+                               timeout=10, limit=MAX_ARTIFACTS + 65536)
+        outputs = parse_artifacts(archive, "verification.json" if verification else "trajectory.csv")
         outputs.update({"stdout.txt": stdout, "stderr.txt": stderr})
         success = code == 0 and not oom
         return ("SUCCEEDED" if success else "FAILED",
                 "SUCCESS" if success else "OOM" if oom else "RUNTIME_ERROR", code, outputs)
+
+    def verification_payload(self, spec):
+        from packages.contracts import JobSpec
+        from packages.verification.trusted import SPEC_HASH
+        runs = []
+        for role, job_id in zip(("primary", "refinement", "held_out"), spec.verification_inputs):
+            row = self.store.get(job_id)
+            source = JobSpec.model_validate_json(row["spec"])
+            if (source.kind != "simulation" or source.experiment_id != spec.experiment_id
+                    or source.attempt_id != spec.attempt_id or row["status"] in ("RUNNING", "QUEUED")):
+                raise RuntimeFailure("verifier input ownership or state mismatch")
+            csv, artifact_id, sha = "", None, hashlib.sha256(b"").hexdigest()
+            for item in self.store.artifacts(job_id):
+                if item["name"] != "trajectory.csv":
+                    continue
+                path = self.settings.root / "artifacts" / item["id"]
+                if item["size"] > 524288 or path.is_symlink() or path.stat().st_size != item["size"]:
+                    raise RuntimeFailure("numeric artifact size denied")
+                raw = path.read_bytes()
+                if hashlib.sha256(raw).hexdigest() != item["sha256"]:
+                    raise RuntimeFailure("numeric artifact hash mismatch")
+                csv, artifact_id, sha = raw.decode(), item["id"], item["sha256"]
+            runs.append({"role": role, "job_id": str(job_id), "attempt_id": str(source.attempt_id),
+                         "bundle_hash": source.bundle_hash, "parameters": source.parameters.model_dump(),
+                         "csv": csv, "artifact_id": artifact_id, "sha256": sha,
+                         "execution_status": row["status"], "cleanup": row["cleanup"]})
+        payload = json.dumps({"spec_hash": SPEC_HASH, "runs": runs}).encode()
+        if len(payload) > 2 * 1024 * 1024:
+            raise OutputLimit("verification input budget")
+        return payload

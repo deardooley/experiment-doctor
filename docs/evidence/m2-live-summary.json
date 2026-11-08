@@ -1,0 +1,129 @@
+{
+  "evidence_type": "live Vultr model with real isolated execution; healthy/false-success need no model call",
+  "fixtures": [
+    {
+      "experiment_id": "e30a2139-0e57-45ab-a021-7bc808d0b4c6",
+      "fixture": "decay-healthy",
+      "outcome": "VERIFIED_HEALTHY",
+      "model_id": "mimo-v2.6-flash",
+      "mode": "live",
+      "model_calls": 0,
+      "jobs_used": 4,
+      "model_usage": [],
+      "elapsed_seconds": 12.888799582997308,
+      "images": {
+        "simulation_image": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
+        "verifier_image": "sha256:b0012ce97e78ee3c38f4a2bda9a5b90fb8584616bc1e76027c02ec76293686db",
+        "verifier_hash": "sha256:38ac091e54ebd1da707bbcf030d51051047c4bb11309a45ee7d3baadd38a30c4",
+        "spec_hash": "sha256:4b7310bfae53a3fd24b613c5e6ba843fafd8b3bcf3d01559a24bc8c35488e302"
+      },
+      "baseline": {
+        "execution": "SUCCEEDED",
+        "verdict": "PASS",
+        "max_absolute_error": 0.0018470998982124676
+      },
+      "final": {
+        "verdict": "PASS",
+        "checks": 22,
+        "max_absolute_error": 0.0018470998982124676
+      },
+      "all_jobs_cleaned": true
+    },
+    {
+      "experiment_id": "e4488762-aa31-469c-b09b-46da9d1184c7",
+      "fixture": "decay-coarse-step",
+      "outcome": "VERIFIED_REPAIR",
+      "model_id": "mimo-v2.6-flash",
+      "mode": "live",
+      "model_calls": 1,
+      "jobs_used": 6,
+      "model_usage": [
+        {
+          "prompt_tokens": 891,
+          "completion_tokens": 307,
+          "total_tokens": 1198
+        }
+      ],
+      "elapsed_seconds": 19.064258749996952,
+      "images": {
+        "simulation_image": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
+        "verifier_image": "sha256:b0012ce97e78ee3c38f4a2bda9a5b90fb8584616bc1e76027c02ec76293686db",
+        "verifier_hash": "sha256:38ac091e54ebd1da707bbcf030d51051047c4bb11309a45ee7d3baadd38a30c4",
+        "spec_hash": "sha256:4b7310bfae53a3fd24b613c5e6ba843fafd8b3bcf3d01559a24bc8c35488e302"
+      },
+      "baseline": {
+        "execution": "SUCCEEDED",
+        "verdict": "FAIL",
+        "max_absolute_error": 2.2432620530009144
+      },
+      "final": {
+        "verdict": "PASS",
+        "checks": 22,
+        "max_absolute_error": 0.0018470998982124676
+      },
+      "all_jobs_cleaned": true
+    },
+    {
+      "experiment_id": "c7bb6fe5-1ff9-4bef-aa18-dd6980048349",
+      "fixture": "decay-wrong-sign",
+      "outcome": "VERIFIED_REPAIR",
+      "model_id": "mimo-v2.6-flash",
+      "mode": "live",
+      "model_calls": 1,
+      "jobs_used": 6,
+      "model_usage": [
+        {
+          "prompt_tokens": 904,
+          "completion_tokens": 338,
+          "total_tokens": 1242
+        }
+      ],
+      "elapsed_seconds": 19.085275958001148,
+      "images": {
+        "simulation_image": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
+        "verifier_image": "sha256:b0012ce97e78ee3c38f4a2bda9a5b90fb8584616bc1e76027c02ec76293686db",
+        "verifier_hash": "sha256:38ac091e54ebd1da707bbcf030d51051047c4bb11309a45ee7d3baadd38a30c4",
+        "spec_hash": "sha256:4b7310bfae53a3fd24b613c5e6ba843fafd8b3bcf3d01559a24bc8c35488e302"
+      },
+      "baseline": {
+        "execution": "SUCCEEDED",
+        "verdict": "FAIL",
+        "max_absolute_error": 144.766034485583
+      },
+      "final": {
+        "verdict": "PASS",
+        "checks": 22,
+        "max_absolute_error": 0.0018470998982124676
+      },
+      "all_jobs_cleaned": true
+    },
+    {
+      "experiment_id": "7507a37f-812e-4d80-b022-0cdcb5edb44d",
+      "fixture": "decay-false-success",
+      "outcome": "NOT_REPAIRED",
+      "model_id": "mimo-v2.6-flash",
+      "mode": "live",
+      "model_calls": 0,
+      "jobs_used": 2,
+      "model_usage": [],
+      "elapsed_seconds": 5.624357833999966,
+      "images": {
+        "simulation_image": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
+        "verifier_image": "sha256:b0012ce97e78ee3c38f4a2bda9a5b90fb8584616bc1e76027c02ec76293686db",
+        "verifier_hash": "sha256:38ac091e54ebd1da707bbcf030d51051047c4bb11309a45ee7d3baadd38a30c4",
+        "spec_hash": "sha256:4b7310bfae53a3fd24b613c5e6ba843fafd8b3bcf3d01559a24bc8c35488e302"
+      },
+      "baseline": {
+        "execution": "SUCCEEDED",
+        "verdict": "FAIL",
+        "max_absolute_error": 144.766034485583
+      },
+      "final": {
+        "verdict": "FAIL",
+        "checks": 10,
+        "max_absolute_error": 144.766034485583
+      },
+      "all_jobs_cleaned": true
+    }
+  ]
+}

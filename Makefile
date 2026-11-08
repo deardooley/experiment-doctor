@@ -15,6 +15,15 @@ infra-check:
 
 .PHONY: runner test-runtime
 runner:
-	uv run --frozen python -m services.runner --root runtime/runner --socket runtime/runner.sock --image "$(SIMULATION_IMAGE)"
+	uv run --frozen python -m services.runner --root runtime/runner --socket runtime/runner.sock --image "$(SIMULATION_IMAGE)" $(if $(VERIFIER_IMAGE),--verifier-image "$(VERIFIER_IMAGE)")
 test-runtime:
-	ED_RUNTIME_TESTS=1 uv run --frozen pytest tests/integration/test_runtime.py -v
+	ED_RUNTIME_TESTS=1 uv run --frozen pytest tests/integration -v
+
+.PHONY: diagnose build-verifier
+FIXTURE ?= decay-coarse-step
+RUNNER_SOCKET ?= runtime/runner.sock
+diagnose:
+	uv run --frozen --env-file .env python -m packages.agent --fixture "$(FIXTURE)" --socket "$(RUNNER_SOCKET)" --output runtime/doctor
+build-verifier:
+	docker build --pull=false -f containers/verifier.Dockerfile -t experiment-doctor-verifier:dev .
+	docker image inspect --format '{{.Id}}' experiment-doctor-verifier:dev

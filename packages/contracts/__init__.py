@@ -14,10 +14,14 @@ class Contract(BaseModel):
 
 
 class Parameters(Contract):
-    k: float = Field(default=1, gt=0, le=10)
-    x0: float = Field(default=1, gt=0, le=100)
+    k: float = Field(default=1.0, gt=0, le=10)
+    x0: float = Field(default=1.0, gt=0, le=100)
     t_end: Literal[5.0] = 5.0
     dt: float = Field(default=0.01, ge=0.0001, le=2.5)
+
+
+class CandidateBundle(Contract):
+    code: str = Field(max_length=32768)
 
 
 class JobStatus(StrEnum):
@@ -55,11 +59,16 @@ class JobSpec(Contract):
     kind: Literal["simulation", "verification"] = "simulation"
     verifier_version: Literal["decay-v1"] | None = None
     idempotency_key: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$")
+    verification_inputs: tuple[UUID, ...] = Field(default=(), max_length=3)
 
     @model_validator(mode="after")
     def verifier_required(self):
         if (self.kind == "verification") != (self.verifier_version is not None):
             raise ValueError("verifier version required only for verification jobs")
+        if self.kind == "simulation" and self.verification_inputs:
+            raise ValueError("simulation jobs cannot select verifier inputs")
+        if self.kind == "verification" and not self.verification_inputs:
+            raise ValueError("verification requires primary evidence")
         return self
 
 

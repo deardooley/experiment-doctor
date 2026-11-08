@@ -1,0 +1,8 @@
+M2: Scientific doctor
+
+- Add the independent decay verifier, versioned tolerances and separate trusted image
+- Implement the bounded diagnosis and repair workflow with live Vultr proposals
+- Enforce patch policy and bind scientific verdicts to immutable job evidence
+- Add curated fault fixtures, control-plane persistence and provenance reports
+- Validate live coarse-step and wrong-sign repairs and reject false success
+- Record deterministic tests, real-container regressions, teardown and budget evidence
