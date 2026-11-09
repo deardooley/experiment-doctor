@@ -69,7 +69,7 @@ test-e2e: web-e2e
 release:
 	bash scripts/build-release "$(RELEASE)" runtime/release
 deploy:
-	bash scripts/deploy "$(DEPLOY_HOST)" "$(RELEASE_DIR)" "$(DEPLOY_KEY)"
+	bash scripts/deploy "$(DEPLOY_HOST)" "$(RELEASE_DIR)" "$(DEPLOY_KEY)" "$(DEPLOY_ENV_FILE)"
 smoke-live:
 	uv run --frozen python -m scripts.release_smoke --origin "$(PUBLIC_ORIGIN)" --output runtime/release-smoke.json
 

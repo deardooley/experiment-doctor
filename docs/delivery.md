@@ -33,17 +33,34 @@ Review the saved plan before apply. Explicit provider authorization and the budg
 
 After choosing a hostname under your control, point its A record at the VM and ensure the provider firewall permits 80/443. Caddy manages public certificates and HTTP redirects for that hostname; see [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https). No TLS bypass or self-signed public demo is intended.
 
-Create `/etc/experiment-doctor` as root, mode 07 . Inject these separate files over authenticated SSH with mode 0600, without printing their contents or transferring the root .env:
+`make deploy` now creates and stages the three service environment files automatically from the local `.env` file and/or exported environment. Exported variables override the file, including empty values. The root `.env` itself is never copied or executed; only the allowlisted role settings travel over verified SSH stdin. The receiver creates `/etc/experiment-doctor` as root with mode 0700 and writes owned regular files with mode 0600:
 
-- `api.env`: PUBLIC_ORIGIN=https://your-hostname and a fresh API_SESSION_KEY of at least 32 random bytes. Normally omit API_OPERATOR_TOKEN and API_ENABLE_OPERATOR_PROBES. For a supervised fixed containment recording only, set a separate API_OPERATOR_TOKEN and API_ENABLE_OPERATOR_PROBES=1; disable afterward.
+- `api.env`: PUBLIC_ORIGIN=https://your-hostname, API_SESSION_KEY and API_ENABLE_OPERATOR_PROBES. If API_SESSION_KEY is unset/empty, staging preserves the existing remote key or generates a 32-byte random key on first deployment. An explicit nonempty key replaces it and must contain at least 32 ASCII characters. Operator probes default to 0; API_OPERATOR_TOKEN is transferred only when API_ENABLE_OPERATOR_PROBES=1 explicitly enables the supervised probe and the token is strong enough.
 - `inference.env`: INFERENCE_BASE_URL=https://api.vultrinference.com/v1, validated INFERENCE_MODEL and INFERENCE_API_KEY only. Never include VULTR_API_KEY.
 - `web.env`: PUBLIC_HOST=your-hostname and ACME_EMAIL=your-contact-email. These are configuration, not secrets.
+
+Required local inputs are INFERENCE_MODEL, INFERENCE_API_KEY, ACME_EMAIL, and either PUBLIC_ORIGIN or PUBLIC_HOST. The hostname/origin is derived from whichever is provided; if both are present they must agree. Deployment accepts a public DNS hostname and HTTPS on port 443. INFERENCE_BASE_URL defaults to the fixed Vultr endpoint. VULTR_API_KEY, registry credentials, unrelated environment values and runtime socket settings are never included in the staged payload.
 
 The installer writes runner.env from the reviewed manifest, with only image IDs and its private Docker socket/runtime directory. No service reads another role's credential file. The web proxy passes only public /api and /health routes; /execution is explicitly denied and operator routes are disabled by the backend unless separately enabled.
 
 ```
 make deploy DEPLOY_HOST=root@vm-ip RELEASE_DIR=runtime/release DEPLOY_KEY=/private/path/key
+# Select a different local input file:
+make deploy DEPLOY_HOST=root@vm-ip RELEASE_DIR=runtime/release DEPLOY_KEY=/private/path/key DEPLOY_ENV_FILE=/private/production.env
+# Ignore local files and use only exported settings:
+make deploy DEPLOY_HOST=root@vm-ip RELEASE_DIR=runtime/release DEPLOY_KEY=/private/path/key DEPLOY_ENV_FILE=-
 ```
+
+Validate inputs locally without displaying secrets or making a connection:
+
+```
+.venv/bin/python -m packages.delivery.configure --check
+.venv/bin/python -m packages.delivery.configure --env-file /private/production.env --check
+```
+
+Staging can also run independently with `python -m packages.delivery.configure --host root@vm-ip --identity /private/path/key`, using the project's Python environment. `--known-hosts` or ED_SSH_KNOWN_HOSTS selects a dedicated verified host-key file. Settings travel only over encrypted stdin, not arguments or logs; only trusted receiver code is sent as the remote command. Files are replaced atomically, with rollback of already replaced files if a write fails, and symlink/unowned-file targets are rejected. Existing services are not restarted by standalone staging. Deployment fails before release upload/service shutdown if staging fails. The input format supports single-line KEY=value, optional export, quoted values and comments; shell commands, variable substitution and multiline values are not evaluated/supported. The local preview requires none of this remote configuration.
+
+SSH/SCP child processes receive a minimal connection environment, excluding inherited project/cloud/registry credentials. Output files quote literal values using [systemd EnvironmentFile rules](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec#EnvironmentFile=); special characters in credentials are not evaluated as shell code.
 
 Installation requires a manifest hash obtained through the reviewed local release. It validates values and trusted verifier hashes, installs offline into a versioned directory, stops mutation services and settles execution, then makes a consistent backup before switching the current symlink. It checks loopback readiness with the exact public Host and starts Caddy. Failed readiness attempts to restore the preceding release/image configuration. First-install failure leaves no promoted release. This is a single-VM deployment with downtime, not a rolling release. Public HTTPS smoke is a separate mandatory promotion gate.
 

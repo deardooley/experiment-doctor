@@ -73,10 +73,16 @@ bash "$base/current/infra/host/setup-control"
 systemctl daemon-reload
 activate() {
  systemctl restart experiment-doctor-runner experiment-doctor-control experiment-doctor-api
- local origin
- origin=$(sed -n 's/^PUBLIC_ORIGIN=//p' /etc/experiment-doctor/api.env)
+ local public_host
+ public_host=$("$base/current/.venv/bin/python" - <<'PY'
+import pathlib,shlex
+from urllib.parse import urlsplit
+line=next(line for line in pathlib.Path('/etc/experiment-doctor/api.env').read_text().splitlines() if line.startswith('PUBLIC_ORIGIN='))
+print(urlsplit(shlex.split(line.split('=',1)[1])[0]).netloc)
+PY
+)
  for ignored in $(seq 1 150); do
-  if curl -fsS --max-time 2 -H "Host: ${origin#https://}" http://127.0.0.1:8000/health/ready >/dev/null 2>&1; then
+  if curl -fsS --max-time 2 -H "Host: $public_host" http://127.0.0.1:8000/health/ready >/dev/null 2>&1; then
    systemctl restart experiment-doctor-web; return
   fi
   sleep 1

@@ -1,20 +1,28 @@
 #!/usr/bin/env bash
-# Explicit authenticated deployment; never invokes Terraform or transfers .env.
+# Explicit authenticated deployment; stages only role-scoped settings, never the root .env.
 set -euo pipefail
-[ "$#" = 3 ] || { echo 'usage: deploy SSH_HOST RELEASE_DIRECTORY SSH_IDENTITY'; exit 1; }
+[ "$#" = 3 ] || [ "$#" = 4 ] || { echo 'usage: deploy SSH_HOST RELEASE_DIRECTORY SSH_IDENTITY [ENV_FILE|-]'; exit 1; }
 host=$1; release=$(realpath "$2"); key=$3
-[[ "$host" =~ ^[a-zA-Z0-9@._-]+$ ]] || exit 1
+[[ "$host" =~ ^[a-zA-Z0-9][a-zA-Z0-9@._-]*$ ]] || exit 1
 (cd "$release" && shasum -a 256 -c SHA256SUMS)
 ssh_args=(-i "$key" -o BatchMode=yes -o StrictHostKeyChecking=yes)
 if [ -n "${ED_SSH_KNOWN_HOSTS:-}" ]; then
  ssh_args+=(-o "UserKnownHostsFile=$ED_SSH_KNOWN_HOSTS")
 fi
-remote=$(ssh "${ssh_args[@]}" "$host" 'umask 077; mktemp -d /var/tmp/doctor-release.XXXXXX')
+connection_env=(env -i)
+for name in PATH HOME USER LOGNAME LANG LC_ALL SSH_AUTH_SOCK TMPDIR; do
+ if [ -n "${!name:-}" ]; then connection_env+=("$name=${!name}"); fi
+done
+config_args=()
+if [ -n "${4:-}" ]; then config_args+=(--env-file "$4"); fi
+# Validate/stage before uploading a release or stopping any service. No values enter argv.
+.venv/bin/python -m packages.delivery.configure --host "$host" --identity "$key" "${config_args[@]}"
+remote=$("${connection_env[@]}" ssh "${ssh_args[@]}" "$host" 'umask 077; mktemp -d /var/tmp/doctor-release.XXXXXX')
 [[ "$remote" =~ ^/var/tmp/doctor-release\.[a-zA-Z0-9]+$ ]] || exit 1
-scp "${ssh_args[@]}" "$release/release.json" "$release/images.tar.gz" "$release/SHA256SUMS" "$host:$remote/"
+"${connection_env[@]}" scp "${ssh_args[@]}" "$release/release.json" "$release/images.tar.gz" "$release/SHA256SUMS" "$host:$remote/"
 manifest_hash=$(shasum -a 256 "$release/release.json" | cut -d' ' -f1)
-scp "${ssh_args[@]}" infra/host/install-release "$host:$remote/install-release"
-ssh "${ssh_args[@]}" "$host" bash -s -- "$remote" "$manifest_hash" <<'REMOTE'
+"${connection_env[@]}" scp "${ssh_args[@]}" infra/host/install-release "$host:$remote/install-release"
+"${connection_env[@]}" ssh "${ssh_args[@]}" "$host" bash -s -- "$remote" "$manifest_hash" <<'REMOTE'
 set -euo pipefail
 cd "$1"
 sha256sum -c SHA256SUMS

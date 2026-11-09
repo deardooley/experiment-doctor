@@ -7,3 +7,5 @@ M5: Reproducible delivery
 - Document deployment, recovery, demo recording and outstanding acceptance gates
 - Add the named local web container and Docker Hub/GitLab registry transport paths
 - Verify local container behavior without weakening artifact integrity checks
+- Automatically stage validated role-scoped settings from local dotenv/environment over SSH
+- Preserve remote session keys and verify private file writes, rollback and secret redaction
