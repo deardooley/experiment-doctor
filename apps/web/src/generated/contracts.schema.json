@@ -1,0 +1,966 @@
+{
+  "$defs": {
+    "AppView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "enum": [
+            "decay-healthy",
+            "decay-coarse-step",
+            "decay-wrong-sign"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "input_schema": {
+          "additionalProperties": true,
+          "title": "Input Schema",
+          "type": "object"
+        },
+        "verifier_version": {
+          "title": "Verifier Version",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "verifier_version",
+        "input_schema"
+      ],
+      "title": "AppView",
+      "type": "object"
+    },
+    "ArtifactView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size": {
+          "maximum": 10485760,
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "label",
+        "size",
+        "sha256"
+      ],
+      "title": "ArtifactView",
+      "type": "object"
+    },
+    "AttemptView": {
+      "additionalProperties": false,
+      "properties": {
+        "jobs": {
+          "items": {
+            "$ref": "#/$defs/JobView"
+          },
+          "maxItems": 4,
+          "title": "Jobs",
+          "type": "array"
+        },
+        "parameters": {
+          "$ref": "#/$defs/Parameters"
+        },
+        "revision": {
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "source": {
+          "maxLength": 32768,
+          "title": "Source",
+          "type": "string"
+        },
+        "verification": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VerificationResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "revision",
+        "parameters",
+        "source",
+        "jobs"
+      ],
+      "title": "AttemptView",
+      "type": "object"
+    },
+    "Check": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Detail",
+          "type": "string"
+        },
+        "key": {
+          "maxLength": 100,
+          "title": "Key",
+          "type": "string"
+        },
+        "measured": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Measured"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "tolerance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tolerance"
+        }
+      },
+      "required": [
+        "key",
+        "passed"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "ConnectionView": {
+      "additionalProperties": false,
+      "properties": {
+        "connected": {
+          "title": "Connected",
+          "type": "boolean"
+        },
+        "errno": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Errno"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "connected"
+      ],
+      "title": "ConnectionView",
+      "type": "object"
+    },
+    "ContainmentView": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "title": "Cleanup",
+          "type": "string"
+        },
+        "connections": {
+          "items": {
+            "$ref": "#/$defs/ConnectionView"
+          },
+          "title": "Connections",
+          "type": "array"
+        },
+        "messages_received": {
+          "minimum": 0,
+          "title": "Messages Received",
+          "type": "integer"
+        },
+        "positive_control": {
+          "title": "Positive Control",
+          "type": "boolean"
+        },
+        "runner_healthy_after": {
+          "title": "Runner Healthy After",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "connections",
+        "positive_control",
+        "messages_received",
+        "cleanup",
+        "runner_healthy_after"
+      ],
+      "title": "ContainmentView",
+      "type": "object"
+    },
+    "EventView": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "title": "At",
+          "type": "number"
+        },
+        "cursor": {
+          "title": "Cursor",
+          "type": "integer"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cursor",
+        "at",
+        "kind",
+        "data"
+      ],
+      "title": "EventView",
+      "type": "object"
+    },
+    "ExperimentSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "number"
+        },
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "fixture_id": {
+          "title": "Fixture Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "VERIFIED_REPAIR",
+            "VERIFIED_HEALTHY",
+            "NOT_REPAIRED",
+            "UNVERIFIED",
+            "BLOCKED",
+            "INCOMPLETE",
+            "CANCELLED",
+            "CONTAINED",
+            "NOT_CONTAINED"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "fixture_id",
+        "kind",
+        "status",
+        "created_at"
+      ],
+      "title": "ExperimentSummary",
+      "type": "object"
+    },
+    "ExperimentView": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactView"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "cancel_requested": {
+          "title": "Cancel Requested",
+          "type": "boolean"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "number"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "fixture_id": {
+          "title": "Fixture Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "report": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReportView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "VERIFIED_REPAIR",
+            "VERIFIED_HEALTHY",
+            "NOT_REPAIRED",
+            "UNVERIFIED",
+            "BLOCKED",
+            "INCOMPLETE",
+            "CANCELLED",
+            "CONTAINED",
+            "NOT_CONTAINED"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "fixture_id",
+        "kind",
+        "status",
+        "created_at",
+        "cancel_requested",
+        "artifacts"
+      ],
+      "title": "ExperimentView",
+      "type": "object"
+    },
+    "JobResult": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_manifest_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Manifest Hash"
+        },
+        "cleanup": {
+          "enum": [
+            "pending",
+            "removed",
+            "failed"
+          ],
+          "title": "Cleanup",
+          "type": "string"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "job_id": {
+          "format": "uuid",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "policy_version": {
+          "const": "sandbox-v1",
+          "default": "sandbox-v1",
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "SUCCESS",
+                "TIMEOUT",
+                "OOM",
+                "CANCELLED",
+                "POLICY_DENIED",
+                "RUNTIME_ERROR",
+                "LOST"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "status": {
+          "$ref": "#/$defs/JobStatus"
+        }
+      },
+      "required": [
+        "job_id",
+        "status",
+        "cleanup"
+      ],
+      "title": "JobResult",
+      "type": "object"
+    },
+    "JobStatus": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "SUCCEEDED",
+        "FAILED",
+        "TIMED_OUT",
+        "CANCELLED",
+        "LOST"
+      ],
+      "title": "JobStatus",
+      "type": "string"
+    },
+    "JobView": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactView"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "execution": {
+          "$ref": "#/$defs/JobResult"
+        },
+        "job_id": {
+          "format": "uuid",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "primary",
+            "refinement",
+            "held_out",
+            "verification"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id",
+        "role",
+        "execution",
+        "artifacts"
+      ],
+      "title": "JobView",
+      "type": "object"
+    },
+    "Parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "dt": {
+          "default": 0.01,
+          "maximum": 2.5,
+          "minimum": 0.0001,
+          "title": "Dt",
+          "type": "number"
+        },
+        "k": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "K",
+          "type": "number"
+        },
+        "t_end": {
+          "const": 5.0,
+          "default": 5.0,
+          "title": "T End",
+          "type": "number"
+        },
+        "x0": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "X0",
+          "type": "number"
+        }
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "ProvenanceView": {
+      "additionalProperties": false,
+      "properties": {
+        "elapsed_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Elapsed Seconds"
+        },
+        "git_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Sha"
+        },
+        "jobs_used": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Jobs Used"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mode"
+        },
+        "model_calls": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Calls"
+        },
+        "model_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Id"
+        },
+        "model_usage": {
+          "items": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "Model Usage",
+          "type": "array"
+        },
+        "runtime_policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Policy"
+        },
+        "simulation_image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Simulation Image"
+        },
+        "spec_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spec Hash"
+        },
+        "verifier_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verifier Hash"
+        },
+        "verifier_image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verifier Image"
+        },
+        "working_tree_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Working Tree Dirty"
+        }
+      },
+      "title": "ProvenanceView",
+      "type": "object"
+    },
+    "ReportView": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "items": {
+            "$ref": "#/$defs/AttemptView"
+          },
+          "maxItems": 3,
+          "title": "Attempts",
+          "type": "array"
+        },
+        "containment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContainmentView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "evidence_expired": {
+          "default": false,
+          "title": "Evidence Expired",
+          "type": "boolean"
+        },
+        "hypothesis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hypothesis"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "outcome": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "VERIFIED_REPAIR",
+            "VERIFIED_HEALTHY",
+            "NOT_REPAIRED",
+            "UNVERIFIED",
+            "BLOCKED",
+            "INCOMPLETE",
+            "CANCELLED",
+            "CONTAINED",
+            "NOT_CONTAINED"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "patch": {
+          "default": "",
+          "title": "Patch",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ProvenanceView"
+        }
+      },
+      "required": [
+        "outcome"
+      ],
+      "title": "ReportView",
+      "type": "object"
+    },
+    "SessionView": {
+      "additionalProperties": false,
+      "properties": {
+        "csrf_token": {
+          "title": "Csrf Token",
+          "type": "string"
+        },
+        "expires_at": {
+          "title": "Expires At",
+          "type": "number"
+        }
+      },
+      "required": [
+        "csrf_token",
+        "expires_at"
+      ],
+      "title": "SessionView",
+      "type": "object"
+    },
+    "VerificationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Check"
+          },
+          "maxItems": 40,
+          "title": "Checks",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "maxItems": 3,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "spec_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Spec Hash",
+          "type": "string"
+        },
+        "spec_version": {
+          "const": "decay-v1",
+          "title": "Spec Version",
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNVERIFIED"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "verifier_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Verifier Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spec_version",
+        "spec_hash",
+        "verifier_hash",
+        "verdict",
+        "checks",
+        "evidence",
+        "limitations"
+      ],
+      "title": "VerificationResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "app": {
+      "$ref": "#/$defs/AppView"
+    },
+    "event": {
+      "$ref": "#/$defs/EventView"
+    },
+    "experiment": {
+      "$ref": "#/$defs/ExperimentView"
+    },
+    "session": {
+      "$ref": "#/$defs/SessionView"
+    },
+    "summary": {
+      "$ref": "#/$defs/ExperimentSummary"
+    }
+  },
+  "required": [
+    "session",
+    "app",
+    "experiment",
+    "summary",
+    "event"
+  ],
+  "title": "BrowserContracts",
+  "type": "object"
+}

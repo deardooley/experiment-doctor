@@ -13,3 +13,7 @@ runtime/
 .terraform/
 *.tfvars
 !*.tfvars.example
+apps/web/dist/
+apps/web/test-results/
+apps/web/playwright-report/
+*.tsbuildinfo

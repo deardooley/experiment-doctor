@@ -154,10 +154,16 @@ class Doctor:
                     self.current = {"attempt_id": self.attempt_id, "revision": revision,
                                     "source": source, "parameters": parameters, "jobs": []}
                     self.attempts.append(self.current)
+                    if self.on_event:
+                        self.on_event('ATTEMPT_STARTED', {'revision': revision, 'attempt_id': self.attempt_id})
                     self.journal.attempt(self.attempt_id, self.experiment_id, revision, bundle_hash(source), parameters)
                     (self.directory / f"revision-{revision}.py").write_text(source)
                     result = await self.verify(source, parameters)
                     self.current["verification"] = result.model_dump(mode="json")
+                    if self.on_event:
+                        self.on_event('VERIFICATION_COMPLETED', {'revision': revision,
+                            'verdict': result.verdict, 'checks_passed': sum(c.passed for c in result.checks),
+                            'checks_total': len(result.checks)})
                     if result.verdict == "PASS":
                         outcome = "VERIFIED_HEALTHY" if revision == 0 else "VERIFIED_REPAIR"
                         break
@@ -179,6 +185,8 @@ class Doctor:
                                 path = self.directory / f'{job["job_id"]}-{artifact["id"]}'
                                 text = path.read_bytes()[:2048].decode(errors="replace")
                                 logs.append(re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", text))
+                    if self.on_event:
+                        self.on_event('MODEL_REQUESTED', {'revision': revision + 1, 'mode': self.model.mode})
                     proposal = await self.model.propose({"fixture": fixture, "source": source, "task": task[:1000],
                         "parameters": parameters, "verification_spec": {"equation": "dx/dt=-k*x", "max_abs_error": 0.01},
                         "checks": checks, "untrusted_logs": logs})
@@ -186,6 +194,9 @@ class Doctor:
                     source, parameters, patch = authorize(proposal, source, parameters, [c.key for c in result.checks])
                     self.current["proposal"] = proposal.model_dump(mode="json")
                     self.current["patch"] = patch
+                    if self.on_event:
+                        self.on_event('PATCH_AUTHORIZED', {'revision': revision + 1,
+                            'hypothesis': proposal.hypothesis, 'patch': patch})
                     self.current["original_hash"] = bundle_hash(original)
         except PolicyDenied:
             outcome, error = "BLOCKED", "Patch/tool denied by deterministic policy"

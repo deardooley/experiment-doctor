@@ -18,6 +18,7 @@ from pydantic import Field
 
 from apps.api.store import ControlStore, LimitExceeded
 from packages.contracts import Contract
+from packages.contracts.presentation import ExperimentSummary, ExperimentView
 
 PUBLIC_FIXTURES = ("decay-healthy", "decay-coarse-step", "decay-wrong-sign")
 
@@ -165,6 +166,27 @@ def create_app(settings: APISettings):
     def submit(intake: Intake, request: Request):
         row = session(request, mutation=True)
         return enqueue(request, row, intake.fixture_id, intake.task)
+
+    @app.get('/api/v1/experiments', response_model=list[ExperimentSummary])
+    def recent(request: Request):
+        owner = session(request)['id']
+        with store.connect() as db:
+            return [ExperimentSummary(experiment_id=row['id'], fixture_id=row['fixture'], kind=row['kind'],
+                                      status=row['status'], created_at=row['created']) for row in db.execute(
+                'SELECT * FROM experiments WHERE session_id=? ORDER BY created DESC LIMIT 10', (owner,))]
+
+    @app.get('/api/v1/experiments/{experiment_id}/view', response_model=ExperimentView)
+    def view(experiment_id: UUID, request: Request):
+        from apps.api.presentation import experiment_view
+        row = owned(experiment_id, session(request)['id'])
+        return experiment_view(store, row)
+
+    @app.get('/api/v1/experiments/{experiment_id}/evidence')
+    def evidence(experiment_id: UUID, request: Request):
+        from apps.api.evidence import bundle
+        row = owned(experiment_id, session(request)['id'])
+        rate(request, 'exports', maximum=6)
+        return bundle(store, row, settings.disk_reserve)
 
     @app.get("/api/v1/experiments/{experiment_id}")
     def experiment(experiment_id: UUID, request: Request):

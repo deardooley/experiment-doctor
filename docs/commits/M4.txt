@@ -1,0 +1,8 @@
+M4: Product interface
+
+- Add a responsive workbench with fixture selection and recorded progress
+- Show diagnosis, patch, measured plots, independent checks and provenance
+- Add typed browser contracts and owned report restoration and evidence ZIP exports
+- Preserve CSRF, ownership, attachment integrity and truthful error states
+- Add desktop/mobile browser acceptance coverage and frontend CI checks
+- Document local operation, deterministic test boundaries and milestone evidence

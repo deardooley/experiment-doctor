@@ -26,3 +26,7 @@ Terraform starts the secret-free VM bootstrap and defaults to no IPv6. Actual pl
 The [private execution guide](docs/execution.md) covers `make runner`, the Unix-socket ExecutionClient, and `make test-runtime`. The [scientific doctor guide](docs/scientific-doctor.md) covers `make build-verifier` and `make diagnose`, the four curated fixtures, patch policy, trusted checks and provenance reports. Full replay and public deployment commands are future work.
 
 The [security operations guide](docs/security.md) covers the public API, separate control worker, signed sessions/CSRF, operator-only network demonstration, service identities and retention. `make test-security` runs authorization checks; `make containment-demo` performs a real denied connection followed by verified healthy computation on the Linux runner host. See the [threat model](docs/threat-model.md) for measured boundaries and shared-kernel limitations.
+
+## Browser workbench (M4)
+
+The interface supports fixture selection, event progress, diagnosis/diff, measured before/after plots, independent checks and evidence downloads. See [product interface operations](docs/product-interface.md) for the API/worker setup and browser checks. Run `make web-setup web-dev` for the loopback frontend; it needs the API and worker described there. Browser tests use labelled deterministic fixtures; live inference and sandbox evidence are recorded separately. Production HTTPS delivery remains M5.

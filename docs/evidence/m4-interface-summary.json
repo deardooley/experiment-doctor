@@ -1,0 +1,14 @@
+{
+  "milestone": "M4: Product interface",
+  "environment": "Local macOS; isolated Playwright Chrome desktop and mobile viewport",
+  "mode": "offline-e2e fixture",
+  "candidate_code_executed_on_host": false,
+  "live_inference_or_cloud_runtime_claimed": false,
+  "interface": ["fixture selection", "owned recent reports", "recorded timeline", "diagnosis and unified patch", "integrity-checked measured plots", "independent measurements", "execution and cleanup", "provenance", "owned evidence ZIP"],
+  "api_acceptance": ["real signed HttpOnly session", "CSRF header", "coarse fixture repair", "healthy control", "22 final checks", "reload restores owned report", "foreign session receives 404 for view and ZIP", "real ZIP signature"],
+  "security_unit_checks": ["ZIP entry hashes and sizes match manifest", "no absolute or traversal paths", "corrupt evidence returns 500", "expired evidence returns 410", "active evidence returns 409"],
+  "browser_edge_checks": ["escaped injection strings", "keyboard tabs and plot slider", "bounded mobile layout", "incomplete result", "cancelled result", "expired-session reconnect", "failed repair", "corrupt trajectory withheld"],
+  "cloud_spend_usd": 0,
+  "public_deployment": false,
+  "next_milestone": "M5: Reproducible delivery"
+}

@@ -39,3 +39,17 @@ containment-demo:
 test-security:
 	uv run --frozen pytest tests/security -v
 INFERENCE_ENV ?= runtime/inference.env
+
+.PHONY: web-setup web-dev web-contracts web-check web-e2e
+web-setup:
+	cd apps/web && npm ci --ignore-scripts
+web-dev:
+	cd apps/web && npm run dev
+web-contracts:
+	uv run --frozen python -m scripts.export_browser_contracts
+	cd apps/web && npm run contracts
+web-check:
+	uv run --frozen python -m scripts.export_browser_contracts --check
+	cd apps/web && npm run contracts:check && npm test && npm run build
+web-e2e:
+	cd apps/web && npm run test:e2e
