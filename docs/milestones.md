@@ -166,6 +166,12 @@ The root receiver creates the configuration directory with mode 0700, writes own
 
 Validation: **113 Python tests passed**, including **20 synthetic configuration/staging cases**; **23 Linux/runtime cases skipped locally**. Ruff, shell syntax and whitespace checks passed. Coverage includes dotenv filtering and literal parsing, environment precedence, private permissions, session-key preservation/rotation, legacy key quoting, invalid input, role isolation, partial-write rollback, symlink denial, secret redaction and an actual deploy-script invocation against fake SSH/SCP endpoints verifying configure-before-copy-before-install order. No real credentials were transferred, no remote host was changed and no cloud resources were provisioned. Fresh-host SSH/systemd validation remains part of the outstanding M5 deployment gate.
 
+### M5 follow-up — Release carrier extraction (2026-11-09)
+
+Fixed the subsequent `stat -: permission denied` / invalid tar stream failure. `runuser` retained the root-only upload directory as its working directory; Docker's stdout-path handling could not traverse it as doctor-runner. The trusted release carrier copy now runs from `/`, preserving the private upload directory and the runner's identity and constraints.
+
+Validation: shell syntax and whitespace checks passed. Reproduced and verified the corrected carrier copy on the existing target, then reran the operator's full deploy command using `runtime/release-v2-fixed`. Deployment completed successfully, installed v2 and started all four services (API, control, runner and web). The loopback API readiness check returned `ready` with `sandbox-v1`. No new cloud resources were provisioned and no candidate jobs were submitted. Public HTTPS remains unverified: local TLS failed while Caddy reported Let's Encrypt's registered-domain certificate rate limit for `devs.surf` and attempted the fallback issuer; an external HTTPS probe timed out. Full HTTPS/live-model/recovery acceptance gates remain open.
+
 ### M5 follow-up — Portable image loading (2026-11-09)
 
 Fixed the reported missing control image `sha256:3ba15ee…` in release v2. The original archive contained all four config blobs in its legacy manifest but only one unnamed OCI index entry. Its classic-store builder and containerd-store target also exposed different `.Id` values: the release pinned a config digest, while the target addressed the imported image by an OCI manifest digest. Checksums alone did not detect either semantic mismatch.

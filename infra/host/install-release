@@ -44,7 +44,9 @@ cleanup() { [ -z "$carrier" ] || "${docker_cmd[@]}" rm -f "$carrier" >/dev/null;
 trap cleanup EXIT
 carrier=$("${docker_cmd[@]}" create "$control")
 # Trusted, hash-pinned release carrier only. Never copy arbitrary candidate archives.
-"${docker_cmd[@]}" cp "$carrier:/release/." - | tar --no-same-owner --no-same-permissions -xf - -C "$staging"
+# runuser retains cwd. The root-only upload directory is not searchable by
+# doctor-runner, and Docker resolves/stat's '-' before treating it as stdout.
+(cd /; "${docker_cmd[@]}" cp "$carrier:/release/." -) | tar --no-same-owner --no-same-permissions -xf - -C "$staging"
 "${docker_cmd[@]}" rm "$carrier" >/dev/null; carrier=''
 python3 -m venv "$staging/.venv"
 "$staging/.venv/bin/python" -m pip install --no-index --find-links "$staging/wheels" --require-hashes -r "$staging/requirements.txt" >/dev/null
