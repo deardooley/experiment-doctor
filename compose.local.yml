@@ -1,0 +1,20 @@
+# Local UI review only. API/runtime services are separate; no credentials enter web.
+services:
+  web:
+    platform: linux/amd64
+    image: ${WEB_IMAGE:-experiment-doctor-web:local}
+    build:
+      context: .
+      dockerfile: containers/web.Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      API_UPSTREAM: host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=16m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true

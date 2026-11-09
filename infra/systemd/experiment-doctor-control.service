@@ -17,6 +17,8 @@ RestartSec=3
 TimeoutStopSec=50
 NoNewPrivileges=true
 ProtectSystem=strict
+PrivateTmp=true
+
 ProtectHome=true
 ReadWritePaths=/var/lib/experiment-doctor/control
 

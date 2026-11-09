@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Root-only installation of an operator-reviewed, local digest-pinned release.
+set -euo pipefail
+umask 077
+[ "$(id -u)" = 0 ] || { echo 'Run as root'; exit 1; }
+[ "$#" = 2 ] || { echo 'usage: install-release MANIFEST EXPECTED_SHA256'; exit 1; }
+manifest=$(realpath "$1")
+[ "$(sha256sum "$manifest" | cut -d' ' -f1)" = "$2" ] || { echo 'Manifest hash mismatch'; exit 1; }
+exec 9>/run/experiment-doctor-deploy.lock
+flock -n 9 || { echo 'Another release operation is active'; exit 1; }
+# All values are validated before any mutation; never source a manifest as shell code.
+mapfile -t fields < <(python3 - "$manifest" <<'PY'
+import json,re,sys
+m=json.load(open(sys.argv[1]))
+assert set(m)=={'schema','release_id','git_sha','working_tree_dirty','control_image','simulation_image','verifier_image','web_image','policy','database_schema','spec_hash','verifier_hash'}
+assert m['schema']==1 and m['policy']=='sandbox-v1' and m['database_schema']=={'control':1,'runner':2,'diagnosis':1}
+assert re.fullmatch(r'[a-f0-9]{40}',m['git_sha'])
+assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,79}',m['release_id'])
+for k in ('control_image','verifier_image','web_image'): assert re.fullmatch(r'sha256:[a-f0-9]{64}',m[k])
+assert re.fullmatch(r'python@sha256:[a-f0-9]{64}',m['simulation_image'])
+for k in ('spec_hash','verifier_hash'): assert re.fullmatch(r'sha256:[a-f0-9]{64}',m[k])
+for k in ('release_id','control_image','simulation_image','verifier_image','web_image'): print(m[k])
+PY
+)
+[ "${#fields[@]}" = 5 ] || { echo 'Invalid release manifest'; exit 1; }
+release=${fields[0]}; control=${fields[1]}; simulation=${fields[2]}; verifier=${fields[3]}; web=${fields[4]}
+base=/opt/experiment-doctor
+[ ! -e "$base/releases/$release" ] || { echo 'Release already installed; use rollback for existing releases'; exit 1; }
+runner_uid=$(id -u doctor-runner)
+docker_cmd=(runuser -u doctor-runner -- env "DOCKER_HOST=unix:///run/user/$runner_uid/docker.sock" docker)
+for image in "$control" "$simulation" "$verifier" "$web"; do "${docker_cmd[@]}" image inspect "$image" >/dev/null; done
+for file in api.env inference.env web.env; do [ -f "/etc/experiment-doctor/$file" ]; done
+previous=$(readlink -f "$base/current" || true)
+staging=$(mktemp -d "$base/releases/.staging.XXXXXX")
+carrier=''
+cleanup() { [ -z "$carrier" ] || "${docker_cmd[@]}" rm -f "$carrier" >/dev/null; [ ! -d "$staging" ] || rm -rf "$staging"; }
+trap cleanup EXIT
+carrier=$("${docker_cmd[@]}" create "$control")
+# Trusted, hash-pinned release carrier only. Never copy arbitrary candidate archives.
+"${docker_cmd[@]}" cp "$carrier:/release/." - | tar --no-same-owner --no-same-permissions -xf - -C "$staging"
+"${docker_cmd[@]}" rm "$carrier" >/dev/null; carrier=''
+python3 -m venv "$staging/.venv"
+"$staging/.venv/bin/python" -m pip install --no-index --find-links "$staging/wheels" --require-hashes -r "$staging/requirements.txt" >/dev/null
+cp "$manifest" "$staging/release.json"
+(cd "$staging" && .venv/bin/python - "$manifest" <<'PY'
+import json,sys
+from packages.verification.trusted import SPEC_HASH,VERIFIER_HASH
+m=json.load(open(sys.argv[1]));assert m['spec_hash']==SPEC_HASH and m['verifier_hash']==VERIFIER_HASH
+PY
+)
+chown -R root:root "$staging"
+chmod -R a+rX "$staging"; chmod 0755 "$staging"
+mv "$staging" "$base/releases/$release"
+staging="$base/releases/.none"
+# Recreate venv at its final path (entrypoint shebangs must not retain staging paths).
+python3 -m venv --clear "$base/releases/$release/.venv"
+"$base/releases/$release/.venv/bin/python" -m pip install --no-index --find-links "$base/releases/$release/wheels" --require-hashes -r "$base/releases/$release/requirements.txt" >/dev/null
+chmod -R a+rX "$base/releases/$release/.venv"
+# Prepare all bytes before downtime. Stop mutations and settle execution before backup.
+systemctl stop experiment-doctor-web experiment-doctor-api experiment-doctor-control experiment-doctor-runner || true
+backup="/var/lib/experiment-doctor/backups/pre-$release"
+if [ -n "$previous" ] && [ -d "$previous" ]; then
+  if ! (cd "$previous" && .venv/bin/python -m packages.delivery.backup create --root /var/lib/experiment-doctor --destination "$backup"); then
+    systemctl start experiment-doctor-runner experiment-doctor-control experiment-doctor-api experiment-doctor-web
+    echo 'Backup failed; previous release retained'; exit 1
+  fi
+fi
+ln -sTf "$base/releases/$release" "$base/.next"; mv -Tf "$base/.next" "$base/current"
+install -m 0644 "$base/current/infra/systemd/"*.service /etc/systemd/system/
+printf 'SIMULATION_IMAGE=%s\nVERIFIER_IMAGE=%s\nDOCKER_HOST=unix:///run/user/%s/docker.sock\nXDG_RUNTIME_DIR=/run/user/%s\n' "$simulation" "$verifier" "$runner_uid" "$runner_uid" > /etc/experiment-doctor/runner.env
+chmod 0600 /etc/experiment-doctor/runner.env
+bash "$base/current/infra/host/setup-control"
+systemctl daemon-reload
+activate() {
+ systemctl restart experiment-doctor-runner experiment-doctor-control experiment-doctor-api
+ local origin
+ origin=$(sed -n 's/^PUBLIC_ORIGIN=//p' /etc/experiment-doctor/api.env)
+ for ignored in $(seq 1 150); do
+  if curl -fsS --max-time 2 -H "Host: ${origin#https://}" http://127.0.0.1:8000/health/ready >/dev/null 2>&1; then
+   systemctl restart experiment-doctor-web; return
+  fi
+  sleep 1
+ done
+ return 1
+}
+if ! activate; then
+ echo 'Release readiness failed; reverting previous bytes and image configuration'
+ systemctl stop experiment-doctor-api experiment-doctor-control experiment-doctor-runner
+ if [ -n "$previous" ] && [ -d "$previous" ]; then
+  ln -sTf "$previous" "$base/.next"; mv -Tf "$base/.next" "$base/current"
+  install -m 0644 "$previous/infra/systemd/"*.service /etc/systemd/system/
+  "$previous/.venv/bin/python" - "$previous/release.json" "$runner_uid" > /etc/experiment-doctor/runner.env <<'PY'
+import json,sys
+m=json.load(open(sys.argv[1]));print('SIMULATION_IMAGE='+m['simulation_image']);print('VERIFIER_IMAGE='+m['verifier_image']);print('DOCKER_HOST=unix:///run/user/'+sys.argv[2]+'/docker.sock');print('XDG_RUNTIME_DIR=/run/user/'+sys.argv[2])
+PY
+  systemctl daemon-reload
+  activate || { echo 'Rollback failed; services remain unready'; exit 1; }
+ fi
+ exit 1
+fi
+systemctl enable experiment-doctor-runner experiment-doctor-control experiment-doctor-api experiment-doctor-web >/dev/null
+printf '%s\n' "$release" > "$base/installed-release"
+echo "Installed $release; HTTPS smoke must pass before external promotion"

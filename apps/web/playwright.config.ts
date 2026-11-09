@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+const apiPort = process.env.ED_BROWSER_PORT ?? '8000';
+if (!/^\d{2,5}$/.test(apiPort) || Number(apiPort) > 65535) throw new Error('Invalid test API port');
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -31,12 +33,13 @@ export default defineConfig({
     {
       command: ".venv/bin/python -m tests.browser_server",
       cwd: "../..",
-      url: "http://127.0.0.1:8000/health/live",
+      url: `http://127.0.0.1:${apiPort}/health/live`,
       ignoreHTTPSErrors: false,
       reuseExistingServer: !process.env.CI,
     },
     {
       command: "npm run dev",
+      env: {ED_API_PROXY: `http://127.0.0.1:${apiPort}`},
       url: "http://127.0.0.1:5173",
       reuseExistingServer: !process.env.CI,
     },

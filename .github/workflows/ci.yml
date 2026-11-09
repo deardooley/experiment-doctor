@@ -37,3 +37,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: apps/web
       - run: make web-e2e
+  proxy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make proxy-check
+      - run: bash -n infra/host/* scripts/build-release scripts/deploy

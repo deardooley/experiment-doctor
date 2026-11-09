@@ -7,6 +7,7 @@ import type {
   SessionView,
 } from "./generated/contracts";
 import { parseTrajectory, uuid } from "./data";
+import { digestHex } from "./hash";
 
 export class APIError extends Error {
   status: number;
@@ -103,6 +104,10 @@ class Client {
   apps = () => json<AppView[]>("/api/v1/apps");
   recent = () => json<ExperimentSummary[]>("/api/v1/experiments");
   health = () => json<{ status: string }>("/health/ready");
+  info = () =>
+    json<{ status: string; release_id?: string | null; preview_mode?: string }>(
+      "/health/live",
+    );
   view = (experiment: string) =>
     json<ExperimentView>(`/api/v1/experiments/${id(experiment)}/view`);
   events = (experiment: string, after: number) =>
@@ -172,11 +177,7 @@ async function artifactBytes(
     maximum,
     signal,
   );
-  const hash = Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(data))),
-  )
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
+  const hash = digestHex(data);
   if (data.length !== artifact.size || hash !== artifact.sha256)
     throw new Error("Evidence integrity check failed.");
   return data;

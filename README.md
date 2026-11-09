@@ -2,7 +2,7 @@
 
 A scientific simulation repair service with independently checked evidence and disposable execution sandboxes. Original project code is covered by LICENSE. See IMPLEMENTATION_PLAN.md for scope and milestones.
 
-M0–M3 are complete: live Vultr-driven repairs passed independent checks; false success was rejected; containment, session authorization and separate service permissions were measured on Vultr. See [milestone evidence](docs/milestones.md). Temporary test VMs were destroyed. The browser product and production HTTPS release remain M4/M5.
+M0–M4 are complete: live Vultr-driven repairs passed independent checks; false success was rejected; containment, session authorization and separate service permissions were measured on Vultr; the browser workbench passed desktop/mobile checks. See [milestone evidence](docs/milestones.md). Temporary test VMs were destroyed. Production delivery remains M5.
 
 Prerequisites: Python 3.12 or 3.13, uv, Terraform >=1.5.7, and a dedicated Linux rootless Docker daemon with cgroup v2 delegation. Docker Desktop alone does not satisfy the target runtime gate.
 
@@ -30,3 +30,7 @@ The [security operations guide](docs/security.md) covers the public API, separat
 ## Browser workbench (M4)
 
 The interface supports fixture selection, event progress, diagnosis/diff, measured before/after plots, independent checks and evidence downloads. See [product interface operations](docs/product-interface.md) for the API/worker setup and browser checks. Run `make web-setup web-dev` for the loopback frontend; it needs the API and worker described there. Browser tests use labelled deterministic fixtures; live inference and sandbox evidence are recorded separately. Production HTTPS delivery remains M5.
+
+## Reproducible delivery (M5, in progress)
+
+[Delivery operations](docs/delivery.md) cover release images/manifests, offline installation, secret-free Terraform/cloud-init, Caddy HTTPS, role-scoped credential injection, rollback, evidence backup/restore and live smoke. [Submission preparation](docs/submission.md) contains the recording script and presentation outline. Public deployment and fresh on-host recovery validation remain pending; local build/tests are not a completed M5 release.

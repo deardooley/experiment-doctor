@@ -1,0 +1,9 @@
+M5: Reproducible delivery
+
+- Add digest-addressed release images, offline dependency wheels and immutable manifests
+- Add secret-free cloud bootstrap, HTTPS proxy and versioned service installation
+- Add consistent evidence backups, guarded restore, code rollback and explicit promotion
+- Add manual release publication workflow and live HTTPS smoke tooling
+- Document deployment, recovery, demo recording and outstanding acceptance gates
+- Add the named local web container and Docker Hub/GitLab registry transport paths
+- Verify local container behavior without weakening artifact integrity checks

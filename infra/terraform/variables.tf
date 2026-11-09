@@ -21,3 +21,12 @@ variable "admin_cidr" {
     error_message = "Provide a restricted administrator IPv4 CIDR."
   }
 }
+variable "release_manifest_sha256" {
+  type        = string
+  default     = ""
+  description = "Reviewed release manifest SHA-256; non-secret deployment provenance only."
+  validation {
+    condition     = var.release_manifest_sha256 == "" || can(regex("^[a-f0-9]{64}$", var.release_manifest_sha256))
+    error_message = "Use an empty value or a SHA-256 hex digest."
+  }
+}

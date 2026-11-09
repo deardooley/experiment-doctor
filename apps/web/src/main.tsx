@@ -527,15 +527,21 @@ function App() {
     [recent, setRecent] = useState<ExperimentSummary[]>([]),
     [poll, setPoll] = useState(0),
     [operator, setOperator] = useState("");
+  const [previewMode, setPreviewMode] = useState("");
   const guard = useRef(false);
   const section = useRef<HTMLElement>(null);
   async function connect(force = false) {
     try {
       setError("");
       await api.bootstrap(force);
-      const [a, r] = await Promise.all([api.apps(), api.recent()]);
+      const [a, r, info] = await Promise.all([
+        api.apps(),
+        api.recent(),
+        api.info(),
+      ]);
       setApps(a);
       setRecent(r);
+      setPreviewMode(info.preview_mode ?? "");
       await api.health();
       setReady(true);
     } catch (e) {
@@ -662,6 +668,12 @@ function App() {
         </span>
       </header>
       <main>
+        {previewMode && (
+          <div className="preview-note" role="status">
+            Offline preview · fixed model and numeric fixtures. No live
+            inference or candidate execution. Mode: {previewMode}.
+          </div>
+        )}
         <section className="hero">
           <div>
             <span className="eyebrow">

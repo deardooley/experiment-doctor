@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Secret-free idempotent Ubuntu 24.04 host setup.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq python3.12-venv caddy
+systemctl disable --now caddy || true
+for account in doctor-api doctor-worker doctor-web; do
+ id "$account" >/dev/null 2>&1 || useradd --system --user-group --shell /usr/sbin/nologin "$account"
+done
+install -d -m 0755 /opt/experiment-doctor /opt/experiment-doctor/releases
+install -d -m 0700 /etc/experiment-doctor /var/lib/experiment-doctor/backups
+install -d -m 0755 /var/lib/experiment-doctor
+# Runtime data is owned separately; Caddy cannot enter these directories.
+install -d -m 0700 -o doctor-runner -g doctor-runner /var/lib/experiment-doctor/runner
+bash "$(dirname "$0")/setup-control"
+dpkg-query -W -f='${Package}=${Version}\n' caddy python3.12 python3.12-venv

@@ -823,3 +823,12 @@ footer span:last-child {
     background-size: 85px auto;
   }
 }
+.preview-note {
+  margin-top: 24px;
+  padding: 12px 16px;
+  border: 1px solid #b9d3e7;
+  border-radius: 7px;
+  background: #edf5fc;
+  color: #375b7d;
+  font-size: 12px;
+}

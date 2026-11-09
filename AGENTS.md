@@ -10,3 +10,5 @@ Never commit credentials, .env, Terraform state, runtime data, or downloaded evi
 No cloud spending, publication, or deployment is authorized by this file. Obtain explicit operator authorization before provisioning resources.
 
 After completing a milestone, create a git commit message starting with the milestone id and title, followed by a dash list of the high level compelted activities.
+
+M4/M5 entry points: `make web-setup web-check test-e2e`, `make release-check`, `make release RELEASE=...`, `make infra-plan`, `make infra-apply`, `make deploy DEPLOY_HOST=... RELEASE_DIR=... DEPLOY_KEY=...`, `make smoke-live PUBLIC_ORIGIN=...`, `make infra-destroy`. Release/publication workflows are manual. A local build or dirty snapshot is not a public release; require actual HTTPS/live-model/runtime/recovery evidence before promotion. Cloud setup is secret-free; inject only separate API/worker credentials over authenticated SSH. Keep backup state and release archives under ignored private runtime paths.

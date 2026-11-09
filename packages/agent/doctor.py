@@ -3,7 +3,6 @@ import asyncio
 import hashlib
 import json
 import re
-import subprocess
 import time
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -217,8 +216,8 @@ class Doctor:
         event = {"tool": "finalize_report", "outcome": outcome}
         self.events.append(event)
         self.journal.event(self.experiment_id, "TOOL", event)
-        git = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True)
-        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True)
+        from packages.delivery.provenance import revision
+        git_sha, working_tree_dirty = revision(ROOT)
         proposals = [a["proposal"] for a in self.attempts if "proposal" in a]
         comparison = {}
         for label, attempt in zip(("before", "after"), (self.attempts[:1] + self.attempts[-1:])):
@@ -235,8 +234,8 @@ class Doctor:
                   "started_at": started_at, "elapsed_seconds": time.monotonic() - self.started, "finished_at": time.time(),
                   "hypothesis": proposals[-1]["hypothesis"] if proposals else None,
                   "patch": patch, "before_after": comparison,
-                  "provenance": {"git_sha": git.stdout.strip() or "unavailable", "runtime_policy": "sandbox-v1",
-                                 "working_tree_dirty": bool(dirty.stdout.strip()),
+                  "provenance": {"git_sha": git_sha, "runtime_policy": "sandbox-v1",
+                                 "working_tree_dirty": working_tree_dirty,
                                  "images": self.config, "spec_hash": SPEC_HASH, "verifier_hash": VERIFIER_HASH},
                   "limitations": LIMITATIONS}
         report["evidence_manifest"] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()

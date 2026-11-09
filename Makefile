@@ -53,3 +53,39 @@ web-check:
 	cd apps/web && npm run contracts:check && npm test && npm run build
 web-e2e:
 	cd apps/web && npm run test:e2e
+
+.PHONY: test-e2e release deploy infra-plan infra-apply infra-destroy smoke-live
+# Infrastructure credentials come only from the operator environment.
+TF_STATE ?= ../../runtime/dev-vm/terraform.tfstate
+TF_VARS ?= ../../runtime/dev-vm/dev.tfvars
+TF_KEY_VARS ?= ../../runtime/dev-vm/key.auto.tfvars.json
+infra-plan:
+	terraform -chdir=infra/terraform plan -input=false -state=$(TF_STATE) -var-file=$(TF_VARS) -var-file=$(TF_KEY_VARS) -out=../../runtime/dev-vm/create.tfplan
+infra-apply:
+	terraform -chdir=infra/terraform apply -input=false -state=$(TF_STATE) ../../runtime/dev-vm/create.tfplan
+infra-destroy:
+	terraform -chdir=infra/terraform destroy -input=false -state=$(TF_STATE) -var-file=$(TF_VARS) -var-file=$(TF_KEY_VARS)
+test-e2e: web-e2e
+release:
+	bash scripts/build-release "$(RELEASE)" runtime/release
+deploy:
+	bash scripts/deploy "$(DEPLOY_HOST)" "$(RELEASE_DIR)" "$(DEPLOY_KEY)"
+smoke-live:
+	uv run --frozen python -m scripts.release_smoke --origin "$(PUBLIC_ORIGIN)" --output runtime/release-smoke.json
+
+.PHONY: release-check
+release-check:
+	mkdir -p runtime
+	uv export --frozen --quiet --no-header --no-dev --no-emit-project --output-file runtime/requirements.check.txt
+	cmp containers/requirements.txt runtime/requirements.check.txt
+
+.PHONY: proxy-check
+proxy-check:
+	docker run --rm --network none --mount type=bind,src="$(CURDIR)/infra/caddy/Caddyfile",dst=/etc/caddy/Caddyfile,readonly -e PUBLIC_HOST=doctor.example.com -e ACME_EMAIL=operator@example.com caddy@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+.PHONY: web-container push-release
+web-container: web-setup
+	cd apps/web && npm run build
+	docker compose --env-file /dev/null -p experiment-doctor-preview -f compose.local.yml up --build -d
+push-release:
+	uv run --frozen python -m packages.delivery.registry push --manifest "$(RELEASE_DIR)/release.json" --prefix "$(REGISTRY_PREFIX)"

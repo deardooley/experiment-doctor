@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Build on Linux amd64 using the dedicated trusted-build daemon; no secrets in context.
+set -euo pipefail
+[ "$#" = 2 ] || { echo 'usage: build-release RELEASE_ID OUTPUT_DIRECTORY'; exit 1; }
+release=$1; output=$2
+[[ "$release" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || exit 1
+[ -f apps/web/dist/index.html ] || { echo 'Build web assets first'; exit 1; }
+[ ! -e "$output/release.json" ] || { echo 'Use a new output directory; releases are immutable'; exit 1; }
+mkdir -p "$output"; chmod 0700 "$output"
+git_sha=${ED_GIT_SHA:-$(git rev-parse HEAD)}
+dirty=${ED_WORKING_TREE_DIRTY:-$(test -z "$(git status --porcelain)" && echo false || echo true)}
+[[ "$git_sha" =~ ^[a-f0-9]{40}$ ]] && [[ "$dirty" =~ ^(true|false)$ ]] || exit 1
+if [ "$dirty" = true ] && [ "${ED_ALLOW_DIRTY_RELEASE:-0}" != 1 ]; then
+ echo 'Commit changes before a release, or explicitly set ED_ALLOW_DIRTY_RELEASE=1 for a labelled dev/test snapshot'; exit 1
+fi
+simulation=python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+docker pull --platform linux/amd64 "$simulation"
+docker build --platform linux/amd64 --pull=false -f containers/verifier.Dockerfile -t "experiment-doctor-verifier:$release" .
+docker build --platform linux/amd64 --pull=false --label "org.opencontainers.image.revision=$git_sha" -f containers/control.Dockerfile -t "experiment-doctor-control:$release" .
+docker build --platform linux/amd64 --pull=false --label "org.opencontainers.image.revision=$git_sha" -f containers/web.Dockerfile -t "experiment-doctor-web:$release" .
+control=$(docker image inspect --format '{{.Id}}' "experiment-doctor-control:$release")
+web=$(docker image inspect --format '{{.Id}}' "experiment-doctor-web:$release")
+verifier=$(docker image inspect --format '{{.Id}}' "experiment-doctor-verifier:$release")
+.venv/bin/python - "$release" "$git_sha" "$dirty" "$control" "$simulation" "$verifier" "$web" > "$output/release.json" <<'PY'
+import json,sys
+from packages.verification.trusted import SPEC_HASH,VERIFIER_HASH
+keys=('release_id','git_sha','working_tree_dirty','control_image','simulation_image','verifier_image','web_image')
+m=dict(zip(keys,sys.argv[1:]));m['working_tree_dirty']=m['working_tree_dirty']=='true'
+m.update(schema=1,policy='sandbox-v1',database_schema={'control':1,'runner':2,'diagnosis':1},spec_hash=SPEC_HASH,verifier_hash=VERIFIER_HASH)
+print(json.dumps(m,indent=2))
+PY
+docker save "$control" "$web" "$verifier" "$simulation" | gzip -1 > "$output/images.tar.gz"
+(cd "$output" && shasum -a 256 release.json images.tar.gz > SHA256SUMS)
+echo 'Release artifacts built; nothing has been published or deployed'

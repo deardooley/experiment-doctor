@@ -1,0 +1,34 @@
+{
+  "milestone": "M5: Reproducible delivery",
+  "status": "local review prepared; fresh deployment gates incomplete",
+  "preview_url": "http://experiment-doctor.local:8080",
+  "preview_mode": "offline-e2e fixture",
+  "candidate_code_executed_on_host": false,
+  "web_container": {
+    "user": "65532:65532",
+    "read_only_root": true,
+    "capabilities_dropped": ["ALL"],
+    "published_address": "127.0.0.1:8080",
+    "credentials_or_runtime_socket_mounted": false
+  },
+  "checks": {
+    "python_passed": 93,
+    "runtime_skipped_locally": 23,
+    "frontend_unit_passed": 3,
+    "browser_regression_passed": 14,
+    "actual_named_container_browser_passed": 2,
+    "offline_carrier_dependency_imports": true,
+    "terraform_validate": true,
+    "rendered_cloud_init_yaml": true,
+    "caddy_configuration": true,
+    "gitlab_yaml_parse": true,
+    "registry_name_and_identity_binding_unit_tests": true,
+    "external_registry_push_or_pull": false
+  },
+  "registry_support": ["Docker Hub from local operator command", "GitLab Registry from protected manual GitLab CI job"],
+  "publication_performed": false,
+  "cloud_resources_created": false,
+  "cloud_spend_usd": 0,
+  "blocker": "Vultr API key source-IP allowlist refused fresh provisioning",
+  "pending": ["fresh host bootstrap/install", "live HTTPS workflow", "on-host rollback/restart/reboot/restore", "reviewed publication and live submission recording"]
+}

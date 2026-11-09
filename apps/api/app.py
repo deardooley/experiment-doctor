@@ -39,13 +39,13 @@ class APISettings:
                 or url.username is not None or url.password is not None):
             raise ValueError("strong session key and exact public origin required")
         if url.scheme != "https":
-            local = url.hostname == "localhost"
+            local = url.hostname in ("localhost", "experiment-doctor.local")
             try:
                 local = local or ipaddress.ip_address(url.hostname).is_loopback
             except (ValueError, TypeError):
                 pass
             if not self.allow_http_local or url.scheme != "http" or not local:
-                raise ValueError("HTTPS origin required outside explicit loopback development")
+                raise ValueError("HTTPS origin required outside explicit local development")
         if not url.netloc:
             raise ValueError("public origin required")
         if self.operator_enabled and (len(self.operator_token) < 32 or not self.operator_token.isascii()):
@@ -246,7 +246,10 @@ def create_app(settings: APISettings):
 
     @app.get("/health/live")
     def live():
-        return {"status": "live"}
+        from packages.verification.trusted import ROOT
+        manifest = ROOT / 'release.json'
+        release = json.loads(manifest.read_text()) if manifest.is_file() else None
+        return {"status": "live", "release_id": release['release_id'] if release else None}
 
     @app.get("/health/ready")
     def ready():

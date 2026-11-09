@@ -1,0 +1,35 @@
+# Dedicated protected Linux amd64 shell runner: Python 3.12, uv 0.9.8, Node 24,
+# make and an isolated trusted-build Docker daemon. No candidate code on the host.
+workflow:
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+stages: [verify, release]
+default:
+  tags: [experiment-doctor-builder]
+verify:
+  stage: verify
+  script:
+    - make setup check web-setup web-check release-check
+release:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never
+  environment: registry-publication
+  script:
+    - make setup web-setup web-check release-check
+    - bash scripts/build-release "$CI_COMMIT_SHA" runtime/release
+    - export DOCKER_CONFIG="$CI_PROJECT_DIR/runtime/docker-auth"
+    - mkdir -p "$DOCKER_CONFIG"
+    - chmod 700 "$DOCKER_CONFIG"
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password-stdin
+    - .venv/bin/python -m packages.delivery.registry push --manifest runtime/release/release.json --prefix "$CI_REGISTRY_IMAGE"
+  after_script:
+    - rm -rf runtime/docker-auth
+  artifacts:
+    paths:
+      - runtime/release/release.json
+      - runtime/release/registry.json
+    expire_in: 7 days

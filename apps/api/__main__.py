@@ -15,7 +15,8 @@ def main():
     parser.add_argument("--origin", required=True)
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--allow-http-local", action="store_true")
-    parser.add_argument("--enable-operator-probes", action="store_true")
+    parser.add_argument("--enable-operator-probes", action="store_true",
+                        default=os.environ.get('API_ENABLE_OPERATOR_PROBES') == '1')
     args = parser.parse_args()
     os.umask(0o007)
     settings = APISettings(root=args.root.resolve(), origin=args.origin,

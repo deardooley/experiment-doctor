@@ -27,7 +27,12 @@ resource "vultr_instance" "demo" {
   enable_ipv6       = false
   ssh_key_ids       = [vultr_ssh_key.dev.id]
   firewall_group_id = vultr_firewall_group.demo.id
-  user_data         = file("${path.module}/../cloud-init/bootstrap.yaml")
+  tags              = compact(["experiment-doctor", var.release_manifest_sha256 == "" ? "" : "release-${var.release_manifest_sha256}"])
+  user_data = templatefile("${path.module}/../cloud-init/bootstrap.yaml", {
+    setup_runtime  = file("${path.module}/../host/setup-runtime")
+    setup_control  = file("${path.module}/../host/setup-control")
+    setup_delivery = file("${path.module}/../host/setup-delivery")
+  })
 }
 output "ipv4" {
   value = vultr_instance.demo.main_ip

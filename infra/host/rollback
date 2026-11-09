@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Explicit code rollback. Compatible schema only; data is retained.
+set -euo pipefail
+[ "$(id -u)" = 0 ] && [ "$#" = 1 ] || { echo 'usage (root): rollback RELEASE_ID'; exit 1; }
+[[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || exit 1
+exec 9>/run/experiment-doctor-deploy.lock
+flock -n 9
+base=/opt/experiment-doctor
+release="$base/releases/$1"
+[ -f "$release/release.json" ]
+# Validate before stopping; this release must already have been installed.
+"$release/.venv/bin/python" - "$release/release.json" <<'PY'
+import json,sys
+m=json.load(open(sys.argv[1]));assert m['database_schema']=={'control':1,'runner':2,'diagnosis':1} and m['policy']=='sandbox-v1'
+PY
+systemctl stop experiment-doctor-web experiment-doctor-api experiment-doctor-control experiment-doctor-runner
+ln -sTf "$release" "$base/.next"; mv -Tf "$base/.next" "$base/current"
+"$release/.venv/bin/python" - "$release/release.json" "$(id -u doctor-runner)" > /etc/experiment-doctor/runner.env <<'PY'
+import json,sys
+m=json.load(open(sys.argv[1]));print('SIMULATION_IMAGE='+m['simulation_image']);print('VERIFIER_IMAGE='+m['verifier_image']);print('DOCKER_HOST=unix:///run/user/'+sys.argv[2]+'/docker.sock');print('XDG_RUNTIME_DIR=/run/user/'+sys.argv[2])
+PY
+install -m 0644 "$release/infra/systemd/"*.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl start experiment-doctor-runner experiment-doctor-control experiment-doctor-api experiment-doctor-web
+echo 'Code rollback started; verify HTTPS readiness and run smoke before promotion'

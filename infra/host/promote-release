@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Operator supplies the reviewed real HTTPS smoke output after recovery checks.
+set -euo pipefail
+[ "$(id -u)" = 0 ] && [ "$#" = 1 ] || { echo 'usage (root): promote-release REVIEWED_SMOKE_JSON'; exit 1; }
+base=/opt/experiment-doctor
+cd "$base/current"
+.venv/bin/python - "$1" <<'PY'
+import json,pathlib,sys
+r=json.load(open(sys.argv[1]));m=json.load(open('release.json'))
+assert r['release_id']==m['release_id'] and not m['working_tree_dirty']
+assert r['transport']=='HTTPS with verified certificate' and r['ready_after']
+assert r['cancellation_winner']=='CANCELLED' and r['containment']['runner_healthy_after']
+assert {w['outcome'] for w in r['workflows']}=={'VERIFIED_HEALTHY','VERIFIED_REPAIR'}
+assert all(w['evidence_integrity'] and w['foreign_session_denied'] for w in r['workflows'])
+assert next(w for w in r['workflows'] if w['outcome']=='VERIFIED_REPAIR')['mode']=='live'
+pathlib.Path('/opt/experiment-doctor/promoted-release').write_text(m['release_id']+'\n')
+print('Reviewed release promoted')
+PY

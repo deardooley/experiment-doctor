@@ -20,6 +20,8 @@ TimeoutStopSec=50
 KillMode=control-group
 NoNewPrivileges=true
 ProtectSystem=strict
+PrivateTmp=true
+
 ProtectHome=read-only
 ReadWritePaths=/var/lib/experiment-doctor/runner /run/experiment-doctor
 

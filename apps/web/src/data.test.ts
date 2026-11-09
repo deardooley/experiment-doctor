@@ -34,3 +34,18 @@ test("plot sampling preserves endpoint and nearest readout uses raw data", () =>
   assert.equal(metric(NaN), "—");
   assert.equal(eventLabel("TOOL", { tool: "get_job" }), null);
 });
+
+import { createHash } from "node:crypto";
+import { digestHex } from "./hash.ts";
+test("browser evidence digest works without secure-context Web Crypto", () => {
+  for (const data of [
+    new Uint8Array(),
+    new TextEncoder().encode("abc"),
+    Uint8Array.from({ length: 65536 }, (_, i) => i % 256),
+  ]) {
+    assert.equal(
+      digestHex(data),
+      createHash("sha256").update(data).digest("hex"),
+    );
+  }
+});

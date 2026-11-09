@@ -23,8 +23,14 @@ class BrowserModel(OfflineModel):
 
 root = Path(tempfile.mkdtemp(prefix='ed-browser-'))
 os.chmod(root, 0o700)
-app = create_app(APISettings(root=root, origin='http://127.0.0.1:5173',
+app = create_app(APISettings(root=root, origin=os.environ.get('ED_BROWSER_ORIGIN', 'http://127.0.0.1:5173'),
                             session_key=os.urandom(48), allow_http_local=True))
+app.router.routes[:] = [route for route in app.router.routes if getattr(route, 'path', '') != '/health/live']
+
+
+@app.get('/health/live')
+def preview_info():
+    return {'status': 'live', 'release_id': None, 'preview_mode': 'offline-e2e fixture'}
 
 
 async def work():
@@ -58,4 +64,4 @@ async def lifespan(app):
 
 app.router.lifespan_context = lifespan
 if __name__ == '__main__':
-    uvicorn.run(app, host='127.0.0.1', port=8000, access_log=False)
+    uvicorn.run(app, host='127.0.0.1', port=int(os.environ.get('ED_BROWSER_PORT', '8000')), access_log=False)
