@@ -67,7 +67,7 @@ infra-destroy:
 	terraform -chdir=infra/terraform destroy -input=false -state=$(TF_STATE) -var-file=$(TF_VARS) -var-file=$(TF_KEY_VARS)
 test-e2e: web-e2e
 release:
-	bash scripts/build-release "$(RELEASE)" runtime/release
+	bash scripts/build-release "$(RELEASE)" "runtime/release-$(RELEASE)"
 deploy:
 	bash scripts/deploy "$(DEPLOY_HOST)" "$(RELEASE_DIR)" "$(DEPLOY_KEY)" "$(DEPLOY_ENV_FILE)"
 smoke-live:
