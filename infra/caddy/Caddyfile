@@ -2,7 +2,13 @@
 	admin 127.0.0.1:2019
 	email {$ACME_EMAIL}
 }
+(tls-acme) {
+}
+(tls-internal) {
+	tls internal
+}
 {$PUBLIC_HOST} {
+	import tls-{$WEB_TLS_MODE:acme}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"

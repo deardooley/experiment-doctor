@@ -77,6 +77,14 @@ def test_operator_probes_require_explicit_enable_and_strong_separate_token(value
     assert api['API_OPERATOR_TOKEN'] == token and api['API_ENABLE_OPERATOR_PROBES'] == '1'
 
 
+def test_tls_mode_is_explicit_and_scoped_to_web(tmp_path, values):
+    assert config.configuration(values)['web.env']['WEB_TLS_MODE'] == 'acme'
+    files = config.configuration(values | {'WEB_TLS_MODE': 'internal'})
+    config.install_files(files, tmp_path / 'config')
+    assert read(tmp_path / 'config', 'web.env')['WEB_TLS_MODE'] == 'internal'
+    assert all('WEB_TLS_MODE' not in files[name] for name in ('api.env', 'inference.env'))
+
+
 @pytest.mark.parametrize('patch', [
     {'PUBLIC_ORIGIN': 'http://doctor.example.com'},
     {'PUBLIC_ORIGIN': 'https://doctor.example.com/path'},
@@ -87,6 +95,9 @@ def test_operator_probes_require_explicit_enable_and_strong_separate_token(value
     {'INFERENCE_API_KEY': 'secret\nINJECTED=value'},
     {'ACME_EMAIL': ''},
     {'API_ENABLE_OPERATOR_PROBES': 'true'},
+    {'WEB_TLS_MODE': ''},
+    {'WEB_TLS_MODE': 'internal { malicious }'},
+    {'WEB_TLS_MODE': 'automatic'},
 ])
 def test_invalid_configuration_fails_before_transfer(values, patch):
     with pytest.raises(config.ConfigurationError):

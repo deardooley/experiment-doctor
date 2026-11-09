@@ -166,6 +166,16 @@ The root receiver creates the configuration directory with mode 0700, writes own
 
 Validation: **113 Python tests passed**, including **20 synthetic configuration/staging cases**; **23 Linux/runtime cases skipped locally**. Ruff, shell syntax and whitespace checks passed. Coverage includes dotenv filtering and literal parsing, environment precedence, private permissions, session-key preservation/rotation, legacy key quoting, invalid input, role isolation, partial-write rollback, symlink denial, secret redaction and an actual deploy-script invocation against fake SSH/SCP endpoints verifying configure-before-copy-before-install order. No real credentials were transferred, no remote host was changed and no cloud resources were provisioned. Fresh-host SSH/systemd validation remains part of the outstanding M5 deployment gate.
 
+### M5 follow-up — Explicit development TLS (2026-11-09)
+
+Added validated, web-only `WEB_TLS_MODE=acme|internal`, defaulting to existing automatic public issuance. Internal mode explicitly selects Caddy's private CA rather than silently changing public trust after ACME failure. Documented client trust, mode reversal and the public HTTPS promotion limitation. The existing v2 VM uses a reversible systemd configuration override outside its immutable release; local `.env` and remote web.env select internal mode. Only the public root certificate was copied over authenticated SSH to ignored `runtime/dev-vm/caddy-root.crt`; no system trust store or CA private key was transferred.
+
+Validation: **33 configuration/delivery tests passed**, including default selection, private role staging and rejection of invalid/injected TLS modes. Both ACME and internal configurations passed validation with the target's actual Caddy binary. External HTTPS with explicit `curl --cacert` verification returned 200 for the UI and readiness (`sandbox-v1`), and 404 for `/execution`. Web service is active. Publicly trusted HTTPS/live-model/recovery gates remain incomplete; this development CA is not public acceptance evidence. No candidate jobs, publication or new cloud resources were created.
+
+### M5 follow-up — Host firewall (2026-11-09)
+
+With explicit operator approval, added persistent UFW allow rules for TCP 80 and 443 on the existing deployment host; existing SSH access was preserved. UFW installed IPv4 and IPv6 rules. External HTTP now returns Caddy's 308 HTTPS redirect, confirming the previously blocked public ingress is reachable. External TLS connects but fails during certificate negotiation: Caddy reports the Let's Encrypt registered-domain rate limit and is attempting ZeroSSL's HTTP-01 challenge. The web service remains active and loopback API readiness returns `ready` / `sandbox-v1`. Public HTTPS acceptance remains pending certificate issuance; no candidate jobs or new cloud resources were created.
+
 ### M5 follow-up — Release carrier extraction (2026-11-09)
 
 Fixed the subsequent `stat -: permission denied` / invalid tar stream failure. `runuser` retained the root-only upload directory as its working directory; Docker's stdout-path handling could not traverse it as doctor-runner. The trusted release carrier copy now runs from `/`, preserving the private upload directory and the runner's identity and constraints.

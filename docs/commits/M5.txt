@@ -12,3 +12,4 @@ M5: Reproducible delivery
 - Export named image references and validate Docker/OCI coverage before deployment
 - Repair existing release bundles and verify pinned images in the rootless target daemon
 - Fix private-directory carrier extraction and validate installation and service readiness on the target
+- Add explicit development TLS mode and verify HTTPS using the private CA's public root certificate

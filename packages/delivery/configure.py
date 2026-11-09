@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 FILE_KEYS = {
     'api.env': {'PUBLIC_ORIGIN', 'API_SESSION_KEY', 'API_ENABLE_OPERATOR_PROBES', 'API_OPERATOR_TOKEN'},
     'inference.env': {'INFERENCE_BASE_URL', 'INFERENCE_MODEL', 'INFERENCE_API_KEY'},
-    'web.env': {'PUBLIC_HOST', 'ACME_EMAIL'},
+    'web.env': {'PUBLIC_HOST', 'ACME_EMAIL', 'WEB_TLS_MODE'},
 }
 KEYS = set().union(*FILE_KEYS.values())
 MAX_INPUT = 65536
@@ -118,6 +118,9 @@ def configuration(values):
     if host.endswith(('.local', '.localhost')) or host == 'localhost' or re.fullmatch(r'[0-9.]+', host):
         raise ConfigurationError('Remote deployment requires a public DNS hostname')
     email = values.get('ACME_EMAIL', '').strip()
+    tls_mode = values.get('WEB_TLS_MODE', 'acme')
+    if tls_mode not in ('acme', 'internal'):
+        raise ConfigurationError('WEB_TLS_MODE must be acme or internal')
     if not re.fullmatch(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}', email):
         raise ConfigurationError('ACME_EMAIL is required and must be an email address')
     base = values.get('INFERENCE_BASE_URL', 'https://api.vultrinference.com/v1').rstrip('/')
@@ -141,7 +144,8 @@ def configuration(values):
             raise ConfigurationError('Enabled operator probes require a separate strong API_OPERATOR_TOKEN')
         api['API_OPERATOR_TOKEN'] = token
     return {'api.env': api, 'inference.env': {key: values[key] for key in ('INFERENCE_MODEL', 'INFERENCE_API_KEY')} |
-            {'INFERENCE_BASE_URL': base}, 'web.env': {'PUBLIC_HOST': host, 'ACME_EMAIL': email}}
+            {'INFERENCE_BASE_URL': base},
+            'web.env': {'PUBLIC_HOST': host, 'ACME_EMAIL': email, 'WEB_TLS_MODE': tls_mode}}
 
 
 def render(values):
