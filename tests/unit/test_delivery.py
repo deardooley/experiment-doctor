@@ -94,6 +94,8 @@ def test_named_local_preview_still_requires_explicit_development_mode(tmp_path):
 
 def test_registry_push_records_immutable_dockerhub_references(tmp_path, monkeypatch):
     import packages.delivery.registry as registry
+    import packages.delivery.images as images
+    monkeypatch.setattr(images, 'config_id', lambda reference: reference.removeprefix('python@'))
     data = {'release_id': 'v1', 'working_tree_dirty': False,
             **{role + '_image': 'sha256:' + str(index) * 64 for index, role in enumerate(registry.ROLES, 1)}}
     data['simulation_image'] = 'python@' + data['simulation_image']

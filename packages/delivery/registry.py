@@ -12,7 +12,7 @@ DIGEST = re.compile(r'sha256:[a-f0-9]{64}')
 
 
 def docker(*args):
-    return subprocess.check_output(['docker', *args], text=True).strip()
+    return subprocess.check_output(['docker', *args], text=True, stderr=subprocess.PIPE).strip()
 
 
 def release(text):
@@ -50,9 +50,20 @@ def push(manifest, prefix, dry_run=False, allow_dirty=False):
     if dry_run:
         return {'publication': False, 'tags': tags}
     locations = {}
+    from packages.delivery.images import config_id, tags as transport_tags
     for role, tag in tags.items():
         source = data[role + '_image']
-        image_id = docker('image', 'inspect', '--format', '{{.Id}}', source)
+        for candidate in (source, transport_tags(data)[role]):
+            try:
+                source = docker('image', 'inspect', '--format', '{{.Id}}', candidate)
+                break
+            except subprocess.CalledProcessError:
+                continue
+        else:
+            raise ValueError(f'Local {role} image missing')
+        image_id = config_id(source)
+        if role != 'simulation' and image_id != data[role + '_image']:
+            raise ValueError('Registry push image config mismatch')
         subprocess.run(['docker', 'tag', source, tag], check=True)
         subprocess.run(['docker', 'push', tag], check=True)
         refs = json.loads(docker('image', 'inspect', '--format', '{{json .RepoDigests}}', tag))
@@ -81,7 +92,8 @@ def pull(transport, expected_hash, output):
     try:
         # Original pinned Python digest independently binds any mirrored simulation image.
         subprocess.run(['docker', 'pull', '--platform', 'linux/amd64', data['simulation_image']], check=True)
-        original_simulation = docker('image', 'inspect', '--format', '{{.Id}}', data['simulation_image'])
+        from packages.delivery.images import config_id, tags as transport_tags
+        original_simulation = config_id(data['simulation_image'])
         for role in ROLES:
             item = info['images'][role]
             ref = item['reference']
@@ -91,16 +103,12 @@ def pull(transport, expected_hash, output):
             if item['image_id'] != expected:
                 raise ValueError('Registry transport image identity mismatch')
             subprocess.run(['docker', 'pull', '--platform', 'linux/amd64', ref], check=True)
-            if docker('image', 'inspect', '--format', '{{.Id}}', ref) != expected:
+            if config_id(ref) != expected:
                 raise ValueError('Downloaded image identity mismatch')
+            subprocess.run(['docker', 'tag', ref, transport_tags(data)[role]], check=True)
         (output / 'release.json').write_text(text)
-        archive = output / 'images.tar.gz'
-        with archive.open('wb') as stream:
-            save = subprocess.Popen(['docker', 'save', *(data[r + '_image'] for r in ROLES)], stdout=subprocess.PIPE)
-            zipped = subprocess.run(['gzip', '-1'], stdin=save.stdout, stdout=stream)
-            save.stdout.close()
-            if save.wait() or zipped.returncode:
-                raise ValueError('Image export failed')
+        from packages.delivery.images import export
+        export(output / 'images.tar.gz', data)
         hashes = {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in ('release.json', 'images.tar.gz')}
         (output / 'SHA256SUMS').write_text(''.join(f'{value}  {name}\n' for name, value in hashes.items()))
     except BaseException:

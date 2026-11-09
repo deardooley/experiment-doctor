@@ -131,3 +131,18 @@ Use lowercase registry repository paths. Docker Hub names use `namespace/experim
 The root `.gitlab-ci.yml` runs only on protected refs using a dedicated protected Linux amd64 shell runner tagged `experiment-doctor-builder`, with Python 3.12, uv 0.9.8, Node 24, make and a trusted-build Docker daemon already installed. Its manual release job builds, authenticates using per-job CI_REGISTRY_USER/CI_REGISTRY_PASSWORD, pushes only to CI_REGISTRY_IMAGE, and preserves release.json/registry.json as artifacts. Configure the registry-publication environment and protected runner in GitLab before use. [GitLab documents these per-job registry credentials](https://docs.gitlab.com/user/packages/container_registry/authenticate_with_container_registry/). No cloud or inference key enters CI, and no pipeline has been dispatched during implementation. Local Docker Hub authentication remains a separate operator action.
 
 To run the named-container browser checks after starting the preview API and web container: `cd apps/web && npx playwright test --config playwright.container.config.ts`. They use isolated Chrome profiles and include a hostname resolver mapping, so they do not modify system DNS. The ordinary browser suite can use `ED_BROWSER_PORT=8100 npm run test:e2e` to avoid interrupting the preview's API on port 8000. Local named HTTP integrity checks use pinned @noble/hashes SHA-256; native secure-context Web Crypto is not required.
+
+### Repairing older image archives
+
+Release export now saves explicit role transport tags with linux/amd64 selected, and checks both the Docker manifest and named OCI index entries. Some classic-store exports made from bare image IDs contain all config blobs in manifest.json but only one unnamed OCI entry; a containerd-store loader can then import none of the usable image references. File checksums alone do not detect that packaging defect.
+
+To repair an existing release without rebuilding its images or changing its release.json, use the same local Docker daemon that built/pulled its immutable images:
+
+```
+.venv/bin/python -m packages.delivery.images repack --manifest runtime/release-v2/release.json --output runtime/release-v2-fixed
+make deploy DEPLOY_HOST=root@vm-ip RELEASE_DIR=runtime/release-v2-fixed DEPLOY_KEY=/private/path/key
+```
+
+The output must be a new directory. The original bundle remains unchanged. Future builds and registry pull/re-export use the corrected exporter automatically. Deployment validates archive metadata before staging credentials, then uses the dedicated rootless daemon to load and verify every image before installation. Since Docker archives do not reliably preserve the original registry RepoDigest binding, the loader restores the approved pinned Python source reference with a deployment-time pull when needed and checks it matches the transported simulation config ID. Cache reuse depends on the image store. This is a trusted deployment step, never a pull during job submission; the runner's immutable allowlist and containment policy remain unchanged. A first import may therefore need Docker Hub access for the pinned Python reference.
+
+Classic and containerd image stores can expose different `.Id` values for identical image content. New releases record canonical config digests. The loader checks the config bytes and OCI descriptor hashes, resolves the target daemon's immutable references, and records a manifest-bound `image-resolution.json`. Installation and rollback use those verified target references rather than guessing that a source config digest is directly addressable on another store. Registry push/pull checks also compare canonical config digests. Release tags are transport/discovery names only; execution still uses immutable references.

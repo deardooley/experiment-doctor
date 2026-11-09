@@ -195,9 +195,8 @@ esac
     scp.write_text('#!/usr/bin/env bash\nprintf "copy\\n" >> ' + shlex.quote(str(events)) + '\n')
     scp.chmod(0o755)
     release = tmp_path / 'release'
-    release.mkdir()
-    for name in ('release.json', 'images.tar.gz'):
-        (release / name).write_bytes(b'synthetic release')
+    from tests.unit.test_release_images import create_archive
+    create_archive(release)
     (release / 'SHA256SUMS').write_text(''.join(
         f'{hashlib.sha256((release / name).read_bytes()).hexdigest()}  {name}\n'
         for name in ('release.json', 'images.tar.gz')))
@@ -209,7 +208,7 @@ esac
     result = subprocess.run(['bash', 'scripts/deploy', 'root@doctor.example.com', str(release), '/private/key', str(source)],
                             cwd=root, env=environment, text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
-    assert events.read_text().splitlines() == ['configure', 'mkdir', 'copy', 'copy', 'install']
+    assert events.read_text().splitlines() == ['configure', 'mkdir', 'copy', 'copy', 'copy', 'install']
     assert 'cloud-marker' not in payload.read_text()
     assert values['INFERENCE_API_KEY'] not in result.stdout + result.stderr
     assert json.loads(payload.read_text())['inference.env']['INFERENCE_API_KEY'] == values['INFERENCE_API_KEY']

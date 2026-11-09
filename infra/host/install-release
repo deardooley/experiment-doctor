@@ -12,6 +12,10 @@ flock -n 9 || { echo 'Another release operation is active'; exit 1; }
 mapfile -t fields < <(python3 - "$manifest" <<'PY'
 import json,re,sys
 m=json.load(open(sys.argv[1]))
+from pathlib import Path
+r=json.loads(Path(sys.argv[1]).with_name('image-resolution.json').read_text())
+import hashlib
+assert r['manifest_sha256']==hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest()
 assert set(m)=={'schema','release_id','git_sha','working_tree_dirty','control_image','simulation_image','verifier_image','web_image','policy','database_schema','spec_hash','verifier_hash'}
 assert m['schema']==1 and m['policy']=='sandbox-v1' and m['database_schema']=={'control':1,'runner':2,'diagnosis':1}
 assert re.fullmatch(r'[a-f0-9]{40}',m['git_sha'])
@@ -19,7 +23,10 @@ assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,79}',m['release_id'])
 for k in ('control_image','verifier_image','web_image'): assert re.fullmatch(r'sha256:[a-f0-9]{64}',m[k])
 assert re.fullmatch(r'python@sha256:[a-f0-9]{64}',m['simulation_image'])
 for k in ('spec_hash','verifier_hash'): assert re.fullmatch(r'sha256:[a-f0-9]{64}',m[k])
-for k in ('release_id','control_image','simulation_image','verifier_image','web_image'): print(m[k])
+for role in ('control','verifier','web'):
+ assert r['images'][role]['config_id']==m[role+'_image']
+ assert re.fullmatch(r'sha256:[a-f0-9]{64}',r['images'][role]['reference'])
+for value in (m['release_id'],r['images']['control']['reference'],m['simulation_image'],r['images']['verifier']['reference'],r['images']['web']['reference']): print(value)
 PY
 )
 [ "${#fields[@]}" = 5 ] || { echo 'Invalid release manifest'; exit 1; }
@@ -42,6 +49,7 @@ carrier=$("${docker_cmd[@]}" create "$control")
 python3 -m venv "$staging/.venv"
 "$staging/.venv/bin/python" -m pip install --no-index --find-links "$staging/wheels" --require-hashes -r "$staging/requirements.txt" >/dev/null
 cp "$manifest" "$staging/release.json"
+cp "$(dirname "$manifest")/image-resolution.json" "$staging/image-resolution.json"
 (cd "$staging" && .venv/bin/python - "$manifest" <<'PY'
 import json,sys
 from packages.verification.trusted import SPEC_HASH,VERIFIER_HASH
@@ -96,8 +104,9 @@ if ! activate; then
   ln -sTf "$previous" "$base/.next"; mv -Tf "$base/.next" "$base/current"
   install -m 0644 "$previous/infra/systemd/"*.service /etc/systemd/system/
   "$previous/.venv/bin/python" - "$previous/release.json" "$runner_uid" > /etc/experiment-doctor/runner.env <<'PY'
-import json,sys
-m=json.load(open(sys.argv[1]));print('SIMULATION_IMAGE='+m['simulation_image']);print('VERIFIER_IMAGE='+m['verifier_image']);print('DOCKER_HOST=unix:///run/user/'+sys.argv[2]+'/docker.sock');print('XDG_RUNTIME_DIR=/run/user/'+sys.argv[2])
+import json,sys,pathlib
+m=json.load(open(sys.argv[1]));p=pathlib.Path(sys.argv[1]).with_name('image-resolution.json');r=json.loads(p.read_text()) if p.exists() else None
+print('SIMULATION_IMAGE='+m['simulation_image']);print('VERIFIER_IMAGE='+(r['images']['verifier']['reference'] if r else m['verifier_image']));print('DOCKER_HOST=unix:///run/user/'+sys.argv[2]+'/docker.sock');print('XDG_RUNTIME_DIR=/run/user/'+sys.argv[2])
 PY
   systemctl daemon-reload
   activate || { echo 'Rollback failed; services remain unready'; exit 1; }

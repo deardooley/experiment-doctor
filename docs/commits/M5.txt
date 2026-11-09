@@ -9,3 +9,5 @@ M5: Reproducible delivery
 - Verify local container behavior without weakening artifact integrity checks
 - Automatically stage validated role-scoped settings from local dotenv/environment over SSH
 - Preserve remote session keys and verify private file writes, rollback and secret redaction
+- Export named image references and validate Docker/OCI coverage before deployment
+- Repair existing release bundles and verify pinned images in the rootless target daemon

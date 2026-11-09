@@ -5,6 +5,7 @@ set -euo pipefail
 host=$1; release=$(realpath "$2"); key=$3
 [[ "$host" =~ ^[a-zA-Z0-9][a-zA-Z0-9@._-]*$ ]] || exit 1
 (cd "$release" && shasum -a 256 -c SHA256SUMS)
+.venv/bin/python -m packages.delivery.images verify --manifest "$release/release.json"
 ssh_args=(-i "$key" -o BatchMode=yes -o StrictHostKeyChecking=yes)
 if [ -n "${ED_SSH_KNOWN_HOSTS:-}" ]; then
  ssh_args+=(-o "UserKnownHostsFile=$ED_SSH_KNOWN_HOSTS")
@@ -21,14 +22,13 @@ remote=$("${connection_env[@]}" ssh "${ssh_args[@]}" "$host" 'umask 077; mktemp 
 [[ "$remote" =~ ^/var/tmp/doctor-release\.[a-zA-Z0-9]+$ ]] || exit 1
 "${connection_env[@]}" scp "${ssh_args[@]}" "$release/release.json" "$release/images.tar.gz" "$release/SHA256SUMS" "$host:$remote/"
 manifest_hash=$(shasum -a 256 "$release/release.json" | cut -d' ' -f1)
-"${connection_env[@]}" scp "${ssh_args[@]}" infra/host/install-release "$host:$remote/install-release"
+"${connection_env[@]}" scp "${ssh_args[@]}" infra/host/install-release infra/host/load-release-images "$host:$remote/"
+"${connection_env[@]}" scp "${ssh_args[@]}" packages/delivery/images.py "$host:$remote/release-images.py"
 "${connection_env[@]}" ssh "${ssh_args[@]}" "$host" bash -s -- "$remote" "$manifest_hash" <<'REMOTE'
 set -euo pipefail
 cd "$1"
 sha256sum -c SHA256SUMS
-uid=$(id -u doctor-runner)
-# Trusted release image archive, not an archive supplied by any experiment.
-gzip -dc images.tar.gz | runuser -u doctor-runner -- env DOCKER_HOST=unix:///run/user/$uid/docker.sock docker load >/dev/null
+bash ./load-release-images ./release.json ./images.tar.gz
 bash ./install-release ./release.json "$2"
 rm -f images.tar.gz
 REMOTE

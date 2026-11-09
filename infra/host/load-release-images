@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Trusted operator release images only; called before service installation.
+set -euo pipefail
+umask 077
+[ "$(id -u)" = 0 ] && [ "$#" = 2 ] || { echo 'usage (root): load-release-images MANIFEST ARCHIVE'; exit 1; }
+helper="$(dirname "$0")/release-images.py"
+[ -f "$helper" ] || helper="$(dirname "$0")/../../packages/delivery/images.py"
+resolution="$(dirname "$1")/image-resolution.json"
+mapfile -t fields < <(python3 - "$1" <<'PY'
+import json,re,sys
+m=json.load(open(sys.argv[1]))
+assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,79}',m['release_id'])
+assert re.fullmatch(r'python@sha256:[a-f0-9]{64}',m['simulation_image'])
+for role in ('control','web','verifier'): assert re.fullmatch(r'sha256:[a-f0-9]{64}',m[role+'_image'])
+print(m['simulation_image'])
+PY
+)
+[ "${#fields[@]}" = 1 ] || { echo 'Invalid release image manifest'; exit 1; }
+uid=$(id -u doctor-runner)
+docker_cmd=(runuser -u doctor-runner -- env DOCKER_HOST=unix:///run/user/$uid/docker.sock docker)
+gzip -dc "$2" | "${docker_cmd[@]}" load
+# Canonical config IDs and destination-native manifest IDs are cryptographically bound
+# through the verified archive. Never substitute an unchecked mutable tag.
+python3 "$helper" resolve --rootless --manifest "$1" --archive "$2" > "$resolution"
+simulation=${fields[0]}
+if ! "${docker_cmd[@]}" image inspect "$simulation" >/dev/null 2>&1; then
+ "${docker_cmd[@]}" pull --platform linux/amd64 "$simulation"
+fi
+resolved=$(python3 "$helper" config-id --rootless --reference "$simulation")
+archived=$(python3 - "$resolution" <<'PY'
+import json,sys
+print(json.load(open(sys.argv[1]))['images']['simulation']['config_id'])
+PY
+)
+[ "$resolved" = "$archived" ] || { echo 'Pinned simulation source does not match transported config'; exit 1; }
+echo 'All four release images verified in the dedicated rootless daemon'

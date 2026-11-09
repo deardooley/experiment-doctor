@@ -29,6 +29,6 @@ m=dict(zip(keys,sys.argv[1:]));m['working_tree_dirty']=m['working_tree_dirty']==
 m.update(schema=1,policy='sandbox-v1',database_schema={'control':1,'runner':2,'diagnosis':1},spec_hash=SPEC_HASH,verifier_hash=VERIFIER_HASH)
 print(json.dumps(m,indent=2))
 PY
-docker save "$control" "$web" "$verifier" "$simulation" | gzip -1 > "$output/images.tar.gz"
+.venv/bin/python -m packages.delivery.images export --canonicalize --manifest "$output/release.json"
 (cd "$output" && shasum -a 256 release.json images.tar.gz > SHA256SUMS)
 echo 'Release artifacts built; nothing has been published or deployed'

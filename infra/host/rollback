@@ -16,8 +16,9 @@ PY
 systemctl stop experiment-doctor-web experiment-doctor-api experiment-doctor-control experiment-doctor-runner
 ln -sTf "$release" "$base/.next"; mv -Tf "$base/.next" "$base/current"
 "$release/.venv/bin/python" - "$release/release.json" "$(id -u doctor-runner)" > /etc/experiment-doctor/runner.env <<'PY'
-import json,sys
-m=json.load(open(sys.argv[1]));print('SIMULATION_IMAGE='+m['simulation_image']);print('VERIFIER_IMAGE='+m['verifier_image']);print('DOCKER_HOST=unix:///run/user/'+sys.argv[2]+'/docker.sock');print('XDG_RUNTIME_DIR=/run/user/'+sys.argv[2])
+import json,sys,pathlib
+m=json.load(open(sys.argv[1]));p=pathlib.Path(sys.argv[1]).with_name('image-resolution.json');r=json.loads(p.read_text()) if p.exists() else None
+print('SIMULATION_IMAGE='+m['simulation_image']);print('VERIFIER_IMAGE='+(r['images']['verifier']['reference'] if r else m['verifier_image']));print('DOCKER_HOST=unix:///run/user/'+sys.argv[2]+'/docker.sock');print('XDG_RUNTIME_DIR=/run/user/'+sys.argv[2])
 PY
 install -m 0644 "$release/infra/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload
